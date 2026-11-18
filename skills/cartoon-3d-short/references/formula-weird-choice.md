@@ -1,6 +1,6 @@
 # Formula "Pilihan Aneh yang Ternyata Benar"
 
-Sumber analisis: *Why Perfect Railroads Don't Work* (Ricks Clips, 1:06, ±22 juta view dalam 5 hari, analisis 2026-11-06).
+Sumber analisis: a viral rail-history short (1:06, ±22 juta view dalam 5 hari, analisis 2026-11-06).
 Tujuan: membedah struktur script, retensi, dan kamera, lalu menjadikannya template untuk short sains/sejarah bergaya kartun 2D di dunia 3D.
 
 ---

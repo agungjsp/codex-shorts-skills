@@ -1,4 +1,4 @@
-# Acting gap study (2026-11-06): Ricks Clips 1080p (5 shorts) vs our Stopped by Thin Air + Died on Time
+# Acting gap study (2026-11-06): 5 reference shorts at 1080p vs our Stopped by Thin Air + Died on Time
 Private study. 30 fps strips + head tracking. Some numbers estimated by eye (pose counts, keys/s, fall angles).
 Main finding: the gap is not squash or idle noise. The reference uses BIG, FAST rotation/translation keys that
 OVERSHOOT then HOLD, plus props/fx that keep moving after the body stops. Ours: small sine loops + smoothstep, no overshoot,

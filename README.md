@@ -2,6 +2,15 @@
 
 Three [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, and Minecraft short scripts. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
 
+## Made with these skills
+
+| Cut the Rope | How You Invented Electricity | Saved by the Stink | How You Invented the Lighthouse |
+|:-:|:-:|:-:|:-:|
+| ![Cut the Rope](docs/demo/cut-the-rope.gif) | ![How You Invented Electricity](docs/demo/invented-electricity.gif) | ![Saved by the Stink](docs/demo/saved-by-the-stink.gif) | ![How You Invented the Lighthouse](docs/demo/invented-lighthouse.gif) |
+Every frame is rendered on a home PC with three.js inside Remotion; no AI video generator, no stock footage.
+
+## The skills
+
 | Skill | What it does |
 |---|---|
 | [`cartoon-3d-short`](skills/cartoon-3d-short) | 55-70 s vertical cartoon story shorts: 2D characters in a 3D world. Script formulas, voice-over, shot plan, camera, acting presets, sound mix, QA review agents and the final render. Looks: painted, PBR, paper diorama, Minecraft voxel. |

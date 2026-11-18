@@ -22,7 +22,7 @@ world built only from Minecraft assets. The cast stays **ink 2D billboards**. An
   `.minecraft` folder; never download them.
 - The assets are Mojang's. Videos (monetised too) are fine; **never redistribute** them: the library stays in
   `<ASSETS_DIR>/minecraft` (not a git repo), and a render copies only the textures it uses into `public/`.
-- Cross dissolves between sets stay. The ricks camera rules apply: set the lens deliberately and zoom with FOV so faces read.
+- Cross dissolves between sets stay. The ink-painted camera rules apply: set the lens deliberately and zoom with FOV so faces read.
 - No clipping: the validator fails a floating or buried body, or a camera inside a block.
 - OPEN: language and captions. The skill says English only, but the user's Minecraft channel is EN + ID
   (`minecraft-shorts` skill). Ask which channel a Minecraft-mode short is for before writing its script.

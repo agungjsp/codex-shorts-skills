@@ -1,4 +1,4 @@
-# Look gap study (2026-11-06): Ricks Clips 1080p (5 shorts) vs our Stopped by Thin Air + Died on Time
+# Look gap study (2026-11-06): 5 reference shorts at 1080p vs our Stopped by Thin Air + Died on Time
 Private study. 14 reference frames vs 14 of ours, caption band 55-80 % masked. Covers only what is NEW or still unmet
 beyond references/reports/{lighting,textures,outlines,grade,depth}.md. Global stats (luma, sat, contrast, detail) already match.
 

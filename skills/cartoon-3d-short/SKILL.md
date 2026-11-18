@@ -28,7 +28,7 @@ The style reference is a channel studied privately. **Never upload, publish or s
 
 ## Read first (cheap, mandatory, before step 1)
 1. `references/lessons-summary.md` — the silent failures and one-line commands that cost a whole render.
-2. `gold/LESSONS.md` (≤ 60 lines) and `gold/ref_cards/<style>.json` (today: `ricks.json`).
+2. `gold/LESSONS.md` (≤ 60 lines) and `gold/ref_cards/<style>.json` (today: `ink-painted.json`).
    Start from the gold parameters, never from zero.
 `references/lessons.md` (full log, newest at the bottom, wins over this file) is on demand: open it only when
 the summary does not cover a problem.

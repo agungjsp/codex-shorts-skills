@@ -117,7 +117,7 @@ One line per lesson: what broke or worked, and the value that fixed it. Newest s
   720p preview (~2.2 Mb/s, 23 MB for 85 s).
 
 ## Stopped by Thin Air (2026-11-06, Westinghouse air brake, formula B rail short, English, the user's voice, 65 s)
-- The "Ricks Clips" reference (formula-weird-choice.md) is about rail expansion gaps: take a different true rail story
+- The reference short (formula-weird-choice.md) is about rail expansion gaps: take a different true rail story
   (here the 1868 air brake) so only the trope is shared. Ask the topic as an AskUserQuestion option list.
 - Trains built from primitives (rolling.ts: loco, tender, boxcar, coach as groups with spinning spoked wheels, side rods,
   sliding brake shoes, parting hoses) beat the Kenney train kit, which is modern and stubby. Ride-along cameras use a
@@ -147,7 +147,7 @@ One line per lesson: what broke or worked, and the value that fixed it. Newest s
 - Windows SAPI TTS (rate 3, ~3.2 w/s) plus words_from_voice.py gives a guide voice and real timings for drafts. The
   user's read was 65 s, faster than TTS: re-check camera speeds per shot after the real words.json lands.
 
-## Look/acting gap study and upgrade (2026-11-06, 5 Ricks Clips shorts at 1080p vs Stopped by Thin Air + Died on Time)
+## Look/acting gap study and upgrade (2026-11-06, 5 reference shorts at 1080p vs Stopped by Thin Air + Died on Time)
 - Global stats (luma, saturation, contrast, detail) already matched the reference. "Cheap" and "stiff" were design gaps,
   not colour gaps: subject darker than its surroundings (0.8x vs ~2x), frame edges as bright as the centre (1.10 vs 0.66),
   5-7 props per interior vs 12-15, 0-1 warm practicals vs 2-6, brown shadows vs plum. Reports: reports/look_gap.md, acting_gap.md.

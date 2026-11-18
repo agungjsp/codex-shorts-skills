@@ -1,5 +1,5 @@
 {
-  "style": "ricks (2D bean-head cards in an ink-outlined painted 3D world)",
+  "style": "ink-painted (2D bean-head cards in an ink-outlined painted 3D world)",
   "status": "baseline from the measured reference + templates/rail; not yet confirmed by a gold video",
   "template": "templates/rail",
   "sources": ["references/reports/*.md", "references/reports/look_gap.md", "references/reports/acting_gap.md"],
