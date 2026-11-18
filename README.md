@@ -4,9 +4,13 @@ Three [Claude Code](https://claude.com/claude-code) skills for making vertical s
 
 ## Made with these skills
 
-| Cut the Rope | How You Invented Electricity | Saved by the Stink | How You Invented the Lighthouse |
-|:-:|:-:|:-:|:-:|
-| ![Cut the Rope](docs/demo/cut-the-rope.gif) | ![How You Invented Electricity](docs/demo/invented-electricity.gif) | ![Saved by the Stink](docs/demo/saved-by-the-stink.gif) | ![How You Invented the Lighthouse](docs/demo/invented-lighthouse.gif) |
+<p align="center">
+  <img src="docs/demo/cut-the-rope.gif" width="190" alt="Cut the Rope">
+  <img src="docs/demo/invented-electricity.gif" width="190" alt="How You Invented Electricity">
+  <img src="docs/demo/saved-by-the-stink.gif" width="190" alt="Saved by the Stink">
+  <img src="docs/demo/invented-lighthouse.gif" width="190" alt="How You Invented the Lighthouse">
+</p>
+<p align="center"><i>Cut the Rope · How You Invented Electricity · Saved by the Stink · How You Invented the Lighthouse</i></p>
 Every frame is rendered on a home PC with three.js inside Remotion; no AI video generator, no stock footage.
 
 ## The skills
