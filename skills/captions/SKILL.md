@@ -73,6 +73,7 @@ change `scripts/captions.py` logic.
 - `--lower`: keep case
 - `--strip-punct`
 - `--alpha`: ProRes 4444
+- `--keep "the snail hole"` (repeatable): never split this phrase across captions; a 4-word caption is allowed only for it and must still fit `--max-width`. Read the full caption list after every full render and fix names or phrases that got split. If a breath of just over 0.30 s splits a phrase, raise `--gap` to 0.35.
 
 ## AE notes for the user
 - **Green clip:** use Keylight with Screen Colour = pure green. It is yuv444 crf 8, so edges stay clean.

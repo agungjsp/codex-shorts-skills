@@ -4,12 +4,16 @@
 // away from the light, soft painted crescents, deadpan lidded eyes, no blush, no catchlights.
 // Design space 600 x 1000 units (soles at y = 975); the canvas transform scales it.
 export const INK = "#241726";
-export const SKIN = "#ffe2c2";
+export const SKIN = "#fbeadf"; // emote-face skin (v3.3)
 const WHITE = "#ffffff";
 const MOUTH = "#5a1e28";
+const MOUTH_E = "#e27c78", TONGUE_E = "#f4aaa7"; // emote style mouth inside + tongue
+let EMOTE = false;
 const TONGUE = "#e86e78";
 type C3 = [number, number, number];
 const SH_SKIN: C3 = [0.96, 0.86, 0.84]; // measured shadow/lit ratio on skin heads
+const SH_HEAD: C3 = [0.88, 0.74, 0.74];
+const SH_RIM: C3 = [0.9, 0.83, 0.84]; // HEAD v3 rim shade: grey-pink // HEAD v2: the cel shadow side of a head, warm
 const SH_CLOTH: C3 = [0.64, 0.66, 0.74]; // torsos: lit side -> far side ~0.65
 const SH_FELT: C3 = [0.62, 0.62, 0.7];
 
@@ -76,8 +80,9 @@ const curve = (a: P2, k: P2, b: P2, n = 10): P2[] => {
 export const RIFLEMAN: Outfit = { jacket: "#357650", pants: "#3d4440", boots: INK, hat: "shako", belt: "#f1efe6", buttons: "#d9dde0", rifle: true };
 export const OFFICER: Outfit = { ...RIFLEMAN, hat: "shako_tall", buttons: "#e8c45a", sash: "#c0353a", sword: true, moustache: "#4a3020", rifle: false, belt: null, build: "stout" };
 export const KID: Outfit = { jacket: "#f08a2c", pants: "#3b5b9a", boots: "#f4f1ea", hat: "cap", cap: "#e2453c", build: "kid" };
-export const PARENT: Outfit = { jacket: "#7b5ac9", pants: "#3b3f52", boots: "#5a3b2a", hat: "hair", hair: "#5a3b2a" };
-export const SKINS = [SKIN, "#f5c9a0", "#ecd0b6", "#c99067"];
+/** BALD BY DEFAULT (user rule 2026-11-18): no hat = no hair. Add hat: "hair" (+ hair colour) only when the story needs it. */
+export const PARENT: Outfit = { jacket: "#7b5ac9", pants: "#3b3f52", boots: "#5a3b2a" };
+export const SKINS = [SKIN, "#ffe2c2", "#f5c9a0", "#ecd0b6", "#c99067"];
 
 export const soldier = (v = 0, extra: Partial<Outfit> = {}): Outfit => {
   const o: Outfit = { ...RIFLEMAN, skin: SKINS[v % 4] };
@@ -215,6 +220,51 @@ const taper = (p: Pen, a: P2, b: P2, wa: number, wb: number, col = INK) => {
   p.dot(a[0], a[1], wa / 2, col); p.dot(b[0], b[1], wb / 2, col);
 };
 
+/** HEAD v2: the head filled with a soft-edged cel shadow on the side away from the light (the lit shape is the head
+ *  slid toward the light and blurred, so the terminator follows the head's own lumps) and a soft highlight high on the
+ *  lit side. Blur is in device px, so it is scaled by the current canvas scale. */
+const headPaint = (p: Pen, hp: P2[], H: Blob, cx: number, cy: number, skin: string, light: number) => {
+  // HEAD v3: flat light skin with a soft grey-pink rim just inside the outline (wider low and on the shadow side)
+  const g = p.g, m = g.getTransform(), sc = Math.hypot(m.a, m.b), dx = Math.cos(light), dy = Math.sin(light);
+  p.poly(hp, mul(skin, SH_RIM), 0);
+  p.clip(hp, () => {
+    g.save(); g.filter = "blur(" + (0.06 * H.a * sc).toFixed(1) + "px)";
+    p.poly(blobPts(cx + dx * 0.05 * H.a, cy - 0.04 * H.b + dy * 0.03 * H.b, { ...H, a: H.a * 0.86, b: H.b * 0.84 }), skin, 0);
+    g.restore();
+  });
+};
+
+/** v3.2 brow-on-eye: the line the brow sits on and the pupil is cut by, per eye: L/R ends (screen order), control c */
+const sitOf = (F: FaceV, i: number): number => { const v = F.sit; return v === undefined ? 0 : typeof v === "number" ? v : v[i]; };
+const sitLine = (F: FaceV, i: number, x: number, ey: number, u: number, side: number) => {
+  const [dI, dO] = browOf(F)[i], bg = F.big ?? 1, R = 6.5 * u * bg, X = 6.2 * u * bg + 1.4 * u, lv = F.look?.[1] ?? 0;
+  const yc = ey + lv * 2 * u - R + sitOf(F, i) * 2 * R, sl = (0.45 * (dO - dI)) / 17, bend = -(F.arch ?? 0) * 0.8 * u;
+  const inner: P2 = [x - side * X, yc - sl * X], outer: P2 = [x + side * X, yc + sl * X];
+  return { inner, outer, c: [x, yc + 2 * bend] as P2, bend, R, yc };
+};
+
+/** v3.4 emote brow: thick in the middle, thin round ends, on a bow */
+const browE = (p: Pen, a: P2, b: P2, w: number, bend: number) => {
+  const c: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 2 * bend], pts = qpts(a, c, b, 14), L: P2[] = [], R: P2[] = [];
+  pts.forEach((q, i) => {
+    const q0 = pts[Math.max(0, i - 1)], q1 = pts[Math.min(pts.length - 1, i + 1)], tx = q1[0] - q0[0], ty = q1[1] - q0[1], tl = Math.hypot(tx, ty) || 1;
+    const hw = (w * (0.5 + 0.5 * Math.sin((Math.PI * i) / (pts.length - 1)))) / 2;
+    L.push([q[0] - (ty / tl) * hw, q[1] + (tx / tl) * hw]); R.push([q[0] + (ty / tl) * hw, q[1] - (tx / tl) * hw]);
+  });
+  p.poly([...L, ...R.reverse()], INK, 0); p.dot(a[0], a[1], w / 4); p.dot(b[0], b[1], w / 4);
+};
+
+/** v3.1: a tapered brow on a bow (bend = px the middle sits off the straight line, - = up on screen) */
+const taperArc = (p: Pen, a: P2, b: P2, wa: number, wb: number, bend: number) => {
+  const c: P2 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + 2 * bend], pts = qpts(a, c, b, 10), L: P2[] = [], R: P2[] = [];
+  pts.forEach((q, i) => {
+    const q0 = pts[Math.max(0, i - 1)], q1 = pts[Math.min(pts.length - 1, i + 1)], tx = q1[0] - q0[0], ty = q1[1] - q0[1], tl = Math.hypot(tx, ty) || 1;
+    const w = (wa + (wb - wa) * (i / (pts.length - 1))) / 2;
+    L.push([q[0] - (ty / tl) * w, q[1] + (tx / tl) * w]); R.push([q[0] + (ty / tl) * w, q[1] - (tx / tl) * w]);
+  });
+  p.poly([...L, ...R.reverse()], INK, 0); p.dot(a[0], a[1], wa / 2); p.dot(b[0], b[1], wb / 2);
+};
+
 // ---------------- contours ----------------
 export type Blob = { a: number; b: number; nTop: number; nBot: number; egg: number; asym: number; rot: number; noise: number; seed: number };
 
@@ -236,12 +286,16 @@ export const blobPts = (cx: number, cy: number, B: Blob, n = 72): P2[] => {
 };
 
 /** measured head: H/W 0.94, slightly pointed crown (1.75), fuller jaw (2.3), chin taper -0.12, 8 % bulge to the facing side */
+/** HEAD v2 (2026-11-18): every seed a different hand-drawn head, never a clean circle: tall or squat (H/W 0.86-1.08),
+ *  a domed or flat crown, a narrow chin or a wide jaw (pear), one cheek fuller, a small tilt, and soft lumps */
 export const headBlob = (seed: number, a = 118, facing = 0): Blob => ({
-  a, b: a * (0.94 + 0.08 * (rnd(seed, 1) - 0.5)),
-  nTop: 1.75 + 0.3 * (rnd(seed, 2) - 0.5), nBot: 2.3 + 0.3 * (rnd(seed, 3) - 0.5),
-  egg: -0.12 + 0.06 * (rnd(seed, 4) - 0.5),
-  asym: (0.06 + 0.04 * rnd(seed, 5)) * (facing || (rnd(seed, 6) < 0.5 ? -1 : 1)),
-  rot: rad(8 * (rnd(seed, 7) - 0.5)), noise: 0.008, seed,
+  // HEAD v3 (2026-11-18): a big near-circle, hand drawn - a hair wider or taller per seed, a slightly flatter jaw, a
+  // faint wobble - never the irregular potato of v2
+  a: a * 1.15, b: a * (0.94 + 0.05 * rnd(seed, 1)),
+  nTop: 2 + 0.15 * rnd(seed, 2), nBot: 2.15 + 0.25 * rnd(seed, 3),
+  egg: -0.05 + 0.06 * rnd(seed, 4),
+  asym: (0.015 + 0.02 * rnd(seed, 5)) * (facing || (rnd(seed, 6) < 0.5 ? -1 : 1)),
+  rot: rad(4 * (rnd(seed, 7) - 0.5)), noise: 0.006 + 0.004 * rnd(seed, 8), seed,
 });
 
 /** thickest outline direction: away from the light, pulled toward the ground (64 deg measured for upper-left light) */
@@ -254,7 +308,10 @@ type ExprV2 = "neutral" | "stern" | "grin" | "laugh" | "whistle" | "nervous" | "
   | "wink" | "dead" | "count" | "aha";
 /** face v3 adds these (v2 draws them as neutral) */
 type ExprV3 = "skeptic" | "determined" | "sheepish" | "awe" | "disgust" | "fake_smile" | "smug" | "bored" | "confused" | "fear" | "terror"
-  | "cry" | "furious" | "joy" | "idea";
+  | "cry" | "furious" | "joy" | "idea"
+  | "deadpan" | "awkward" | "unamused" | "annoyed" | "smirk" | "worried" | "sleepy" | "plotting"
+  | "alarmed" | "puzzled" | "delighted" | "cringe" | "overwhelmed" | "gloom" | "thinking" | "unbothered" | "cool"
+  | "pout" | "yell" | "laugh_xd" | "smile_side" | "kiss" | "blush" | "vexed" | "tired" | "nervous_ring" | "smug_content" | "rage" | "shout_xd" | "content" | "unimpressed";
 export type Expr = ExprV2 | ExprV3;
 type EyeK = "dot" | "small" | "lid" | "slit" | "happy" | "dash" | "squeeze" | "shock" | "shockHalf" | "spiral" | "cross";
 type MouthK = "dash" | "frown" | "smirk" | "smile" | "smileWide" | "grin" | "laugh" | "o" | "O" | "wave" | "teeth" | "lick";
@@ -354,23 +411,75 @@ const mouth = (p: Pen, kind: MouthK, mx: number, my: number, u: number, k = 1) =
 // like FACE. Brows stay inside the forehead band: -8u (up) .. +12u (down).
 /** false = the old v2 faces (before/after renders) */
 export const FACE_V3 = true;
-type EyeV = "dial" | "happy" | "squeeze" | "dash" | "spiral" | "cross";
+type EyeV = "dial" | "happy" | "squeeze" | "dash" | "spiral" | "cross" | "rest";
 /** teeth: 0 none / 1 top band / 2 gritted (a mix passes through fractions: the band grows in, >= 1.5 grits);
  *  tongue, wave and lick are 0..1 amounts (1 = the full shape) */
-type MouthV = { w: number; c?: number; tilt?: number; open?: number; round?: number; teeth?: number; tongue?: number; wave?: number; lick?: number };
+type MouthV = { w: number; c?: number; tilt?: number; open?: number; round?: number; teeth?: number; tongue?: number; wave?: number; lick?: number;
+  /** v3.2: the little cat mouth ":3" (a w with a raised middle) */
+  cat?: number;
+  /** v3.3: a boxy open mouth (rounded rectangle; with wave = a wobbly scared box) */
+  square?: number;
+  /** v3.4: the kiss mouth, a small "3" */
+  kiss?: number };
 type Pair = [number, number];
 type FaceV = { eye?: EyeV | [EyeV, EyeV]; white?: boolean; lid?: number | Pair; low?: number | Pair; pupil?: number; look?: Pair;
-  brow: Pair | [Pair, Pair]; mouth: MouthV; fx?: ("sweat" | "tears" | "ticks")[];
+  brow: Pair | [Pair, Pair]; mouth: MouthV; fx?: ("sweat" | "tears" | "ticks" | "knit" | "vein" | "anger" | "bang" | "question" | "spark" | "xspark" | "dizzy" | "gloom" | "gloomlines" | "blush" | "flush" | "dots" | "star" | "zzz" | "shades")[];
+  /** v3.1: brow arch (+ bows up, - bows down, in 6u) and eye size (1 = normal) */
+  arch?: number; big?: number;
+  /** v3.2: a small white catchlight in a dark eye */
+  shine?: boolean;
+  /** v3.2 BROW-ON-EYE: the brow sits ON the dark eye and cuts the top of the pupil off along its own line and arch
+   *  (0.2 = a sliver cut, 0.6 = half-shut and heavy). The deadpan look. */
+  sit?: number | Pair;
+  /** v3.3 EMOTE style: small dark oval eyes under a lid line, wide-set; thin long brows; coral mouths */
+  emote?: boolean;
   /** set only on a face part-way through a morph (mixFace): lid lines fade in, a rising lower lid bends into the happy arc */
   soft?: boolean };
 const V3: Record<Expr, FaceV> = {
-  neutral: { lid: 0.5, brow: [0, -1], mouth: { w: 5.5, tilt: 0.8 } },
+  // v3.4 the user's 20-face reference sheet (2026-11-18), in its order
+  awkward: { emote: true, sit: 0.1, brow: [0, 0], arch: 0.35, mouth: { w: 9, cat: 1 }, fx: ["sweat"] },
+  annoyed: { emote: true, sit: 0.1, brow: [[1, 1], [3, -4]], arch: 0.3, mouth: { w: 6, c: -0.8 }, fx: ["sweat"] },
+  alarmed: { emote: true, white: true, big: 0.8, pupil: 0, brow: [-3, -2], arch: 0.5, mouth: { w: 8, open: 1.2, square: 1, tongue: 1 }, fx: ["sweat"] },
+  pout: { emote: true, sit: 0.12, brow: [0, 0], arch: 0.3, mouth: { w: 4.5, c: -0.8 }, fx: ["sweat"] },
+  yell: { emote: true, sit: 0.08, brow: [9, -5], arch: -0.2, mouth: { w: 8.5, open: 1.1, square: 1, wave: 0.6, tongue: 1 } },
+  delighted: { emote: true, eye: "happy", brow: [-2, -2], arch: 0.4, mouth: { w: 9, cat: 1, open: 1, tongue: 1 } },
+  laugh_xd: { emote: true, eye: "squeeze", brow: [-2, -2], arch: 0.4, mouth: { w: 10.5, open: 1, square: 2, tongue: 1 } },
+  smile_side: { emote: true, sit: 0.12, brow: [0, -1], arch: 0.35, look: [0.2, 0], mouth: { w: 6, c: 0.6, tilt: 2 } },
+  kiss: { emote: true, eye: "rest", brow: [0, 0], arch: 0.35, mouth: { w: 4, kiss: 1 } },
+  blush: { emote: true, eye: "happy", brow: [0, 0], arch: 0.35, mouth: { w: 7, cat: 1 }, fx: ["blush"] },
+  thinking: { emote: true, sit: 0.12, brow: [[0, 0], [-3, -5]], arch: 0.4, look: [0.3, -0.1], mouth: { w: 4, c: -0.7 }, fx: ["sweat"] },
+  vexed: { emote: true, sit: 0.12, brow: [[1, 0], [4, -3]], arch: 0.3, mouth: { w: 5.5, c: -0.8 }, fx: ["sweat"] },
+  deadpan: { emote: true, sit: 0.15, brow: [0, 0], arch: 0.3, mouth: { w: 4, c: 0 } },
+  tired: { emote: true, sit: 0.25, brow: [1, 1], arch: 0.3, mouth: { w: 5, open: 0.6, square: 1, tongue: 1 }, fx: ["sweat"] },
+  nervous_ring: { emote: true, white: true, big: 1.15, pupil: 0, brow: [-4, 2], arch: 0.3, mouth: { w: 8.5, wave: 1 }, fx: ["sweat"] },
+  smug_content: { emote: true, sit: 0.12, brow: [0, -1], arch: 0.35, mouth: { w: 6.5, c: 0.7, tilt: 1 } },
+  rage: { emote: true, sit: 0.08, brow: [9, -5], arch: -0.2, mouth: { w: 8, open: 1.1, square: 1, tongue: 1 }, fx: ["flush"] },
+  shout_xd: { emote: true, eye: "squeeze", brow: [4, -3], arch: 0.1, mouth: { w: 12.5, open: 1, square: 2, tongue: 1 } },
+  content: { emote: true, eye: "rest", brow: [0, 0], arch: 0.35, mouth: { w: 5, c: 0.6 } },
+  unimpressed: { emote: true, sit: 0.2, brow: [0, 0], arch: 0.3, mouth: { w: 4, c: -0.1 } },
+  // v3.3 EMOTE family (the user's reference sheet, 2026-11-18): small dark oval eyes hanging under a lid line, long thin
+  // high brows, small simple mouths, coral open mouths, a sweat drop; no floating marks. sit = how much the line cuts.
+  unamused: { emote: true, sit: 0.3, brow: [1, 2], arch: 0.3, look: [0.6, 0.1], mouth: { w: 5, c: -0.5 } },
+  smirk: { emote: true, sit: [0.16, 0.26], brow: [[-3, -4], [3, 0]], arch: 0.4, look: [0.4, 0], mouth: { w: 6, c: 0.5, tilt: 3 } },
+  worried: { emote: true, sit: 0.14, brow: [-5, 3], arch: 0.4, look: [0, 0.2], mouth: { w: 6, wave: 1 }, fx: ["sweat"] },
+  plotting: { emote: true, sit: 0.24, brow: [6, -3], arch: 0, look: [0.5, 0], mouth: { w: 7, c: 0.75, tilt: 2 } },
+  puzzled: { emote: true, sit: 0.18, brow: [[1, 1], [-6, -5]], arch: 0.5, look: [0.2, 0], mouth: { w: 4.5, c: -0.85 }, fx: ["sweat"] },
+  cringe: { emote: true, eye: "squeeze", brow: [-3, -3], arch: 0.5, mouth: { w: 11, c: 0.1, open: 1.25, tongue: 1 }, fx: ["sweat"] },
+  overwhelmed: { emote: true, sit: 0.22, brow: [-2, 1], arch: 0.5, look: [0.2, 0], mouth: { w: 7, c: -0.3, open: 0.55, square: 1, tongue: 1 }, fx: ["sweat"] },
+  gloom: { emote: true, white: true, big: 0.8, pupil: 0, brow: [-4, 3], arch: 0.4, mouth: { w: 9, open: 1.4, square: 1, wave: 0.9, tongue: 1 }, fx: ["gloom", "sweat"] },
+  unbothered: { emote: true, sit: 0.22, brow: [[3, 0], [-5, -4]], arch: 0.4, mouth: { w: 4, c: -0.8 }, fx: ["sweat"] },
+  sleepy: { emote: true, eye: "rest", brow: [0, 2], arch: 0.5, mouth: { w: 4, c: -0.6 }, fx: ["sweat"] },
+  cool: { emote: true, sit: 0.18, brow: [-2, -2], arch: 0.5, mouth: { w: 7, c: 0.7, tilt: 2 }, fx: ["shades", "sweat"] },
+  // v3.2 neutral (ink-painted reference read): big dark pupils with a catchlight, round arched brows sitting high, a short
+  // simple curved line for a mouth (soft smile, no tilt)
+  neutral: { emote: true, sit: 0.14, brow: [0, 0], arch: 0.6, look: [0.12, 0], mouth: { w: 5, c: 0.5 } },
   stern: { lid: 0.45, brow: [8, -4], mouth: { w: 6.5, c: -0.45, tilt: -1 } },
   grin: { eye: "happy", brow: [-3, -3], mouth: { w: 12, c: 0.7, open: 0.55, teeth: 1, tilt: 1.5 } },
   laugh: { eye: "squeeze", brow: [-4, -4], mouth: { w: 16, c: 0.6, open: 0.95, teeth: 1, tongue: 1, tilt: 1 } },
   whistle: { eye: "dash", brow: [-2, -4], mouth: { w: 3.5, open: 0.3, round: 1 } },
   nervous: { brow: [-6, 4], look: [0.5, 0], mouth: { w: 9, wave: 1 } },
-  shock: { white: true, pupil: 0.55, brow: [-8, -7], mouth: { w: 9, open: 0.9, round: 1 } },
+  // v3.1 shock: brows shot up and arched, big white eyes with pin pupils, a tall dropped-jaw mouth, ticks
+  shock: { white: true, big: 1.22, pupil: 0.42, brow: [-12, -10], arch: 1, mouth: { w: 8.5, open: 1.25, round: 1 }, fx: ["ticks"] },
   relief: { eye: "happy", brow: [-2, 3], mouth: { w: 11, c: 0.75, tilt: 1 } },
   relief_open: { eye: "happy", brow: [-2, 3], mouth: { w: 12, c: 0.7, open: 0.5, teeth: 1, tilt: 1 } },
   dazed: { eye: "spiral", brow: [-3, 2], mouth: { w: 9, wave: 1 } },
@@ -381,7 +490,9 @@ const V3: Record<Expr, FaceV> = {
   sly: { lid: 0.42, brow: [3, -3], look: [0.6, 0], mouth: { w: 7, c: 0.5, tilt: 3.5 } },
   suspicious: { lid: 0.62, low: 0.2, brow: [[3, -1], [8, -3]], mouth: { w: 6.5, c: -0.4, tilt: -2 } },
   sad: { lid: 0.5, brow: [-8, 8], look: [0, 0.6], mouth: { w: 7, c: -0.75, tilt: -1 } },
-  angry: { lid: 0.4, brow: [10, -6], mouth: { w: 12, c: -0.4, open: 0.4, teeth: 2 } },
+  // v3.1 angry: brows crushed down onto the eyes (lids slant with them), a knit between them, a vein, wide gritted
+  // teeth with the corners pulled down
+  angry: { lid: 0.3, brow: [11, -3], arch: -0.35, mouth: { w: 15, c: -0.5, open: 0.95, teeth: 2 }, fx: ["knit", "vein"] },
   crosseyed: { eye: "cross", brow: [-7, -6], mouth: { w: 9, wave: 1 } },
   slygrin: { lid: 0.5, brow: [7, -5], mouth: { w: 12, c: 0.7, open: 0.5, teeth: 1, tilt: 3 } },
   chew: { eye: "happy", brow: [-1, -2], mouth: { w: 9, wave: 1 } },
@@ -409,7 +520,7 @@ const V3: Record<Expr, FaceV> = {
 const pairOf = <T,>(v: T | [T, T]): [T, T] => (Array.isArray(v) ? (v as [T, T]) : [v, v]);
 const browOf = (F: FaceV): [Pair, Pair] => {
   const b = (typeof F.brow[0] === "number" ? [F.brow, F.brow] : F.brow) as [Pair, Pair];
-  return b.map(([i, o]) => [clamp(i, -8, 12), clamp(o, -8, 12)]) as [Pair, Pair];
+  return b.map(([i, o]) => [clamp(i, -12, 14), clamp(o, -12, 14)]) as [Pair, Pair];
 };
 
 // ---------------- expression morph (face v3) ----------------
@@ -447,9 +558,9 @@ const mixFace = (A: FaceV, B: FaceV, k: number): FaceV => {
   }
   const ba = browOf(A), bb = browOf(B), la = A.look ?? [0, 0], lb = B.look ?? [0, 0];
   const brow = [0, 1].map((i) => [lerpN(ba[i][0], bb[i][0], k), lerpN(ba[i][1], bb[i][1], k)]) as [Pair, Pair];
-  const MZ = { c: 0, tilt: 0, open: 0, round: 0, teeth: 0, tongue: 0, wave: 0, lick: 0 }, ma = { ...MZ, ...A.mouth }, mb = { ...MZ, ...B.mouth };
+  const MZ = { c: 0, tilt: 0, open: 0, round: 0, teeth: 0, tongue: 0, wave: 0, lick: 0, cat: 0, square: 0, kiss: 0 }, ma = { ...MZ, ...A.mouth }, mb = { ...MZ, ...B.mouth };
   const mouth = Object.fromEntries((["w", ...Object.keys(MZ)] as (keyof MouthV)[]).map((n) => [n, lerpN(ma[n] ?? 0, mb[n] ?? 0, k)])) as MouthV;
-  return { eye, white: near.white, lid, low, pupil: lerpN(A.pupil ?? 1, B.pupil ?? 1, k), look: [lerpN(la[0], lb[0], k), lerpN(la[1], lb[1], k)],
+  return { eye, white: near.white, shine: near.shine, sit: near.sit, emote: near.emote, lid, low, pupil: lerpN(A.pupil ?? 1, B.pupil ?? 1, k), arch: lerpN(A.arch ?? 0, B.arch ?? 0, k), big: lerpN(A.big ?? 1, B.big ?? 1, k), look: [lerpN(la[0], lb[0], k), lerpN(la[1], lb[1], k)],
     brow, mouth, fx: near.fx, soft: true };
 };
 /** the face numbers for an expression or a mix */
@@ -468,18 +579,34 @@ const qpts = (a: P2, c: P2, b: P2, n = 12): P2[] => {
 const eyeV = (p: Pen, F: FaceV, i: number, x: number, ey: number, u: number, side: number, look: number, blink: number) => {
   const k = pairOf<EyeV>(F.eye ?? "dial")[i], [dI, dO] = browOf(F)[i], lw = 3.8 * u;
   const m = clamp((dI - dO) * 0.035, -0.4, 0.4), ly = (xx: number, yc: number) => yc - m * (xx - x) * side; // lid follows brow
-  const happy = () => p.stroke(qpts([x - 8 * u, ey + 3 * u], [x, ey - 8 * u], [x + 8 * u, ey + 3 * u]), lw);
+  const happy = () => p.stroke(qpts([x - 8 * u, ey + 3 * u], [x, ey - 8 * u], [x + 8 * u, ey + 3 * u]), F.emote ? 2.6 * u : lw);
   const dash = (yc: number) => p.stroke([[x - 8.5 * u, ly(x - 8.5 * u, yc)], [x + 8.5 * u, ly(x + 8.5 * u, yc)]], lw);
   if (k === "happy") return happy();
-  if (k === "squeeze") return p.stroke([[x + 6 * u * side, ey - 5 * u], [x - 6 * u * side, ey], [x + 6 * u * side, ey + 5 * u]], lw);
+  if (k === "rest") return p.stroke(qpts([x - 8.5 * u, ey + u], [x, ey + 6 * u], [x + 8.5 * u, ey + u]), F.emote ? 2.6 * u : lw);
+  if (k === "squeeze") return p.stroke([[x + 6 * u * side, ey - 5 * u], [x - 6 * u * side, ey], [x + 6 * u * side, ey + 5 * u]], F.emote ? 2.6 * u : lw);
   if (k === "spiral") {
     const s: P2[] = [];
     for (let t = 1; t < 15; t++) s.push([x + Math.cos(t * 0.9) * t * 0.55 * u, ey + Math.sin(t * 0.9) * t * 0.55 * u]);
     return p.stroke(s, 2.4 * u);
   }
   if (k === "dash" || blink >= 1) return dash(ey);
-  const W = !!F.white || k === "cross", R = W ? 11 * u : 6.5 * u, RX = W ? 10 * u : 6.2 * u;
-  const T0 = pairOf(F.lid ?? 0)[i], T = T0 + (1 - T0) * blink, B = pairOf(F.low ?? 0)[i];
+  const W = !!F.white || k === "cross", bg = F.big ?? 1, R = (W ? 11 : 6.5) * u * bg, RX = (W ? 10 : 6.2) * u * bg;
+  if (F.emote && W) { // emote ring eye: a tall white oval, thick ink rim, no pupil
+    const rx = 4.6 * u * (F.big ?? 0.8) / 0.8, ry = 5.6 * u * (F.big ?? 0.8) / 0.8;
+    p.ell(x, ey + u, rx, ry * (1 - blink), WHITE, 3 * u); return;
+  }
+  if (F.emote && !W) { // emote eye: a small dark oval hanging under a thick lid line that runs out past it
+    const [dI, dO] = browOf(F)[i], lh = clamp((F.look?.[0] ?? 0) + look, -1, 1), lv = F.look?.[1] ?? 0, sc = (F.big ?? 1.3) / 1.3;
+    const rx = 4.7 * u * sc, ry = 6 * u * sc, px = x + lh * 2 * u, py = ey + 2.5 * u + lv * 1.5 * u;
+    const sl = clamp((dO - dI) * 0.02, -0.2, 0.2), cut = sitOf(F, i) || 0.1, yl = py - ry + cut * 2 * ry + blink * 2 * ry * (1 - cut);
+    const xi = x - side * 8.2 * u, xo = x + side * 10.6 * u, at = (xx: number) => yl + sl * Math.abs(xx - x) * (Math.sign(xx - x) === side ? 1 : -1);
+    const L = Math.min(xi, xo), Rr = Math.max(xi, xo);
+    if (blink < 0.95) p.clip([[L - 4 * u, at(L - 4 * u)], [Rr + 4 * u, at(Rr + 4 * u)], [Rr + 4 * u, py + 3 * ry], [L - 4 * u, py + 3 * ry]], () => p.ell(px, py, rx, ry, INK, 0));
+    p.stroke([[xi, at(xi)], [xo - side * 1.5 * u, at(xo)], [xo, at(xo) + 1.2 * u]], 2.7 * u);
+    return;
+  }
+  const SIT = !W && sitOf(F, i) > 0 ? sitLine(F, i, x, ey, u, side) : null;
+  const T0 = SIT ? 0 : pairOf(F.lid ?? 0)[i], T = T0 + (1 - T0) * blink, B = pairOf(F.low ?? 0)[i];
   const lh = clamp((F.look?.[0] ?? 0) + look, -1, 1), lv = F.look?.[1] ?? 0;
   const ecx = W ? x : x + lh * 2.5 * u, ecy = W ? ey : ey + lv * 2 * u;
   if (T + B >= 0.95) return B >= T ? happy() : dash(ecy - R + T * 2 * R);
@@ -492,33 +619,68 @@ const eyeV = (p: Pen, F: FaceV, i: number, x: number, ey: number, u: number, sid
   const yc = h ? yc0 + (ey - 2.5 * u - yc0) * h * h : yc0;
   const lowL = lerp2([x - X * 0.9, yb + 1.5 * u], [x - 8 * u, ey + 3 * u], h), lowC = lerp2([x, yb - 3.5 * u], [x, ey - 8 * u], h),
     lowR = lerp2([x + X * 0.9, yb + 1.5 * u], [x + 8 * u, ey + 3 * u], h);
-  const clipPts: P2[] = [[x - X - 2 * u, ly(x - X - 2 * u, yc)], [x + X + 2 * u, ly(x + X + 2 * u, yc)],
+  // brow-on-eye: the top edge is the brow's own line (shifted down while blinking), so the pupil is cut by the brow
+  const sitTop = (): P2[] => {
+    const S = SIT!, dy = blink * 2 * S.R * 1.05, [L, Rr] = side < 0 ? [S.outer, S.inner] : [S.inner, S.outer];
+    return qpts([L[0] - 2 * u, L[1] + dy], [S.c[0], S.c[1] + dy], [Rr[0] + 2 * u, Rr[1] + dy]);
+  };
+  const clipPts: P2[] = [...(SIT ? sitTop() : [[x - X - 2 * u, ly(x - X - 2 * u, yc)], [x + X + 2 * u, ly(x + X + 2 * u, yc)]] as P2[]),
     ...(h ? qpts(lerp2([x + X + 2 * u, yb + 2 * u], lowR, h), lerp2([x, yb - 4 * u], lowC, h), lerp2([x - X - 2 * u, yb + 2 * u], lowL, h))
       : qpts([x + X + 2 * u, yb + 2 * u], [x, yb - 4 * u], [x - X - 2 * u, yb + 2 * u]))];
   p.clip(clipPts, () => {
-    if (!W) { p.ell(ecx, ecy, RX, R, INK, 0); return; }
+    if (!W) { p.ell(ecx, ecy, RX, R, INK, 0); if (F.shine) p.dot(ecx + 0.32 * RX, ecy - 0.38 * R, 0.3 * RX, WHITE); return; }
     const pu = F.pupil ?? 1;
     p.ell(x, ey, RX, R, WHITE, 2.6 * u);
-    p.dot(k === "cross" ? x - side * 5 * u : x + lh * 3.5 * u - side * u * (pu < 0.8 ? 0 : 1), ey + u + lv * 3.5 * u, 3.6 * u * pu);
+    p.dot(k === "cross" ? x - side * 5 * u : x + lh * 3.5 * u - side * u * (pu < 0.8 ? 0 : 1), ey + u + lv * 3.5 * u, 3.6 * u * pu * Math.max(1, bg * 0.9));
   });
-  if (T >= 0.02) p.stroke([[x - X, ly(x - X, yc)], [x + X, ly(x + X, yc)]], lw * fade(T));
+  if (SIT) p.stroke(sitTop().slice(1, -1), 4.6 * u);
+  else if (T >= 0.02) p.stroke([[x - X, ly(x - X, yc)], [x + X, ly(x + X, yc)]], lw * fade(T));
   if (B >= 0.02) p.stroke(qpts(lowL, lowC, lowR), (2.4 * u + (lw - 2.4 * u) * h) * fade(B));
 };
 /** mouth from numbers: w half-width (u), c curve (-1 frown .. 1 smile), tilt (right corner up), open 0..1, round = o/O,
  *  teeth 1 = top band / 2 = gritted, tongue, wave, lick. Talking opens it without losing the curve. */
 const mouthV = (p: Pen, M0: MouthV, mx: number, my: number, u: number, k = 1) => {
-  const M = { c: 0, tilt: 0, open: 0, round: 0, teeth: 0, tongue: 0, wave: 0, lick: 0, ...M0 };
+  const M = { c: 0, tilt: 0, open: 0, round: 0, teeth: 0, tongue: 0, wave: 0, lick: 0, cat: 0, square: 0, kiss: 0, ...M0 };
   if (TALK > 0.3) { M.wave = 0; M.lick = 0; M.w = Math.max(M.w, 6); M.open = Math.max(M.open, 0.12 + 0.5 * TALK); }
   const w = M.w * u * k;
   if (M.wave >= 0.999) {
     const s: P2[] = [];
     for (let i = 0; i <= 12; i++) s.push([mx - w + (i * 2 * w) / 12, my + 1.6 * u * Math.sin(i * 1.3) - M.tilt * u * 0.5 * (i / 6 - 1)]);
-    return p.stroke(s, 3 * u);
+    return p.stroke(s, (EMOTE ? 2.3 : 3) * u);
+  }
+  if (M.kiss > 0.5 && M.open < 0.05) { // a small "3"
+    const h = 4.2 * u, x0 = mx - 1.2 * u;
+    return p.stroke([...qpts([x0, my - h], [x0 + 5 * u, my - h * 0.75], [x0, my], 8), ...qpts([x0, my], [x0 + 5 * u, my + h * 0.75], [x0, my + h], 8).slice(1)], 2.3 * u);
+  }
+  if (M.open >= 0.05 && (M.square > 0.5 || M.cat > 0.5)) {
+    const top = my - 2 * u, bot = my + M.open * 14 * u + 2 * u, wob = (y: number, i: number, n: number) => y + M.wave * 1.3 * u * Math.sin((i * Math.PI * 5) / n);
+    let shape: P2[];
+    if (M.square > 1.5) { // "D" laugh: a near-flat top, a deep round bottom
+      const T = qpts([mx - w, top], [mx, top + 1.5 * u], [mx + w, top], 10);
+      shape = [...T, ...ellPts(mx, top, w, w * 1.5, 0, 180).slice(1)];
+    } else if (M.square > 0.5) { // trapezoid box, the bottom narrower
+      const n = 10, T: P2[] = [], B: P2[] = [];
+      for (let i = 0; i <= n; i++) { const x = mx - w + (2 * w * i) / n; T.push([x, wob(top, i, n)]); }
+      for (let i = 0; i <= n; i++) { const x = mx + w * 0.76 - (2 * w * 0.76 * i) / n; B.push([x, wob(bot, i, n)]); }
+      shape = [...T, ...B];
+    } else { // open ":3" - the cat top, a round deep bottom
+      const h = 4.2 * u, m: P2 = [mx, top - 0.8 * u];
+      shape = [...qpts([mx - w, top - h * 0.3], [mx - w / 2, top + h * 1.3], m, 8), ...qpts(m, [mx + w / 2, top + h * 1.3], [mx + w, top - h * 0.3], 8).slice(1),
+        ...qpts([mx + w, top - h * 0.3], [mx, bot + M.open * 10 * u], [mx - w, top - h * 0.3], 14).slice(1)];
+    }
+    p.poly(shape, (EMOTE ? MOUTH_E : MOUTH), 0);
+    if (M.tongue > 0.02) p.clip(shape, () => p.ell(mx, bot + 1.5 * u, w * 0.7, Math.max(3 * u, (bot - top) * 0.45), (EMOTE ? TONGUE_E : TONGUE), 0));
+    return p.poly(shape, null, (EMOTE ? 2.1 : 3) * u);
+  }
+  if (M.cat > 0.5 && M.open < 0.05) { // ":3" - two little bumps down, the middle tucked up
+    const t = M.tilt * u * 0.5, h = 4.4 * u, m: P2 = [mx, my - 2 * u];
+    p.stroke([...qpts([mx - w, my - h * 0.4 + t], [mx - w / 2, my + h * 1.5], m, 8), ...qpts(m, [mx + w / 2, my + h * 1.5], [mx + w, my - h * 0.4 - t], 8).slice(1)], (EMOTE ? 2.3 : 3.8) * u);
+    return;
   }
   if (M.round > 0.5 && M.open > 0.05) {
     const ry = M.open * 10 * u + 2 * u, cy = my + M.open * 2 * u;
-    p.ell(mx, cy, w, ry, MOUTH, 0);
-    if (M.tongue > 0.02 || M.open > 0.6) p.clip(ellPts(mx, cy, w, ry, 0, 360), () => p.ell(mx + u, cy + ry * 0.8, w * 0.6, ry * 0.4, TONGUE, 0));
+    p.ell(mx, cy, w, ry, (EMOTE ? MOUTH_E : MOUTH), 0);
+    if (M.tongue > 0.02 || M.open > 0.6) p.clip(ellPts(mx, cy, w, ry, 0, 360), () => p.ell(mx + u, cy + ry * 0.8, w * 0.6, ry * 0.4, (EMOTE ? TONGUE_E : TONGUE), 0));
     return p.ell(mx, cy, w, ry, null, 3 * u);
   }
   const cy = my - M.c * 3.5 * u, Lp: P2 = [mx - w, cy + M.tilt * u * 0.5], Rp: P2 = [mx + w, cy - M.tilt * u * 0.5], top = my + M.c * 4 * u;
@@ -527,28 +689,102 @@ const mouthV = (p: Pen, M0: MouthV, mx: number, my: number, u: number, k = 1) =>
     ? qpts(Lp, [mx, top], Rp, 14).map(([x, y], i): P2 => [x, y + M.wave * 1.6 * u * Math.sin((i * 1.3 * 12) / 14)])
     : qpts(Lp, [mx, top], Rp, 14);
   if (M.open < 0.05) {
-    p.stroke(upper, (4 - M.wave) * u);
-    if (M.lick > 0.02) { const l = Math.min(1, M.lick); p.ell(mx + 0.75 * w, my + 3 * u, 3.6 * u * l, 4.6 * u * l, TONGUE, 2.4 * u); }
+    p.stroke(upper, (EMOTE ? 2.3 : 4 - M.wave) * u);
+    if (M.lick > 0.02) { const l = Math.min(1, M.lick); p.ell(mx + 0.75 * w, my + 3 * u, 3.6 * u * l, 4.6 * u * l, (EMOTE ? TONGUE_E : TONGUE), 2.4 * u); }
     return;
   }
   const bot = top + M.open * 22 * u, shape = [...upper, ...qpts(Rp, [mx, bot], Lp, 14)];
-  p.poly(shape, M.teeth >= 1.5 ? WHITE : MOUTH, 0);
+  p.poly(shape, M.teeth >= 1.5 ? WHITE : (EMOTE ? MOUTH_E : MOUTH), 0);
   p.clip(shape, () => {
     if (M.teeth > 0.02 && M.teeth < 1.5) p.stroke(upper, 7 * u * Math.min(1, M.teeth), WHITE);
     if (M.teeth >= 1.5) {
       p.stroke(qpts(Lp, [mx, (top + bot) / 2], Rp), 1.6 * u);
       for (const j of [-0.5, 0, 0.5]) p.stroke([[mx + j * w, cy - 20 * u], [mx + j * w, bot + 4 * u]], 1.5 * u);
     }
-    if (M.tongue > 0.02) { const tg = Math.min(1, M.tongue); p.ell(mx + 2 * u, (top + bot) / 2 + M.open * 6 * u, w * 0.45 * tg, (M.open * 6 * u + 1.5 * u) * tg, TONGUE, 0); }
+    if (M.tongue > 0.02) { const tg = Math.min(1, M.tongue); p.ell(mx + 2 * u, (top + bot) / 2 + M.open * 6 * u, w * 0.45 * tg, (M.open * 6 * u + 1.5 * u) * tg, (EMOTE ? TONGUE_E : TONGUE), 0); }
   });
-  p.poly(shape, null, 3 * u);
+  p.poly(shape, null, (EMOTE ? 2.1 : 3) * u);
 };
 /** sweat drop / tear streams / surprise ticks (front faces; the profile skips the ticks) */
 const fxV = (p: Pen, F: FaceV, cx: number, cy: number, eyes: number[], u: number, sd: number, ticks: boolean) => {
-  if (F.fx?.includes("sweat")) p.ell(cx + 40 * u * sd, cy - 22 * u, 3 * u, 5 * u, "#9fd4ff", 2 * u);
+  if (F.fx?.includes("sweat")) { // a big cartoon drop at the temple: point up, round bottom, a highlight
+    const dx = cx + 33 * u * sd, dy = cy - 11 * u, r = 7 * u;
+    const drop: P2[] = [[dx, dy - 2.2 * r], ...ellPts(dx, dy, r, r, -30, 210, 0).filter((_, j, a) => j > 0 && j < a.length)];
+    p.poly(drop, "#8fd0ff", 2.6 * u); p.ell(dx - 0.35 * r, dy + 0.1 * r, 0.22 * r, 0.42 * r, "#ffffff", 0);
+  }
   if (F.fx?.includes("tears")) for (const x of eyes) {
     const s = x < cx ? -1 : 1, pts: P2[] = [[x + s * 2 * u, cy + 7 * u], [x + s * 3 * u, cy + 16 * u], [x + s * 2 * u, cy + 26 * u]];
     p.stroke(pts, 6.4 * u); p.stroke(pts, 3.6 * u, "#9fd4ff");
+  }
+  if (F.fx?.includes("knit")) for (const s of [-1, 1]) // two short creases between the crushed brows
+    p.stroke(qpts([cx + s * 3 * u, cy - 26 * u], [cx + s * 1.5 * u, cy - 21 * u], [cx + s * 3.5 * u, cy - 16 * u], 6), 1.8 * u);
+  if (F.fx?.includes("vein")) { // the cartoon anger mark high on the forehead, away from the brows
+    const vx = cx - 38 * u * sd, vy = cy - 17 * u;
+    for (const [a, b] of [[[-1, -1], [-0.25, -0.25]], [[1, -1], [0.25, -0.25]], [[-1, 1], [-0.25, 0.25]], [[1, 1], [0.25, 0.25]]] as [P2, P2][])
+      p.stroke(qpts([vx + a[0] * 7 * u, vy + a[1] * 7 * u], [vx + (a[0] + b[0]) * 2 * u, vy + (a[1] + b[1]) * 5 * u], [vx + b[0] * 7 * u, vy + b[1] * 7 * u], 6), 2.6 * u, "#d8323c");
+  }
+  // v3.3 floating marks: at the top corner of the head away from the sweat drop, each with a white rim so it reads over
+  // hair or sky. mk = mark centre, m = mark scale.
+  const has = (n: string) => F.fx?.includes(n as never);
+  const mk: P2 = [cx - 46 * u * sd, cy - 50 * u], m = u * 1.1, rim = (pts: P2[], w: number, col: string) => { p.stroke(pts, w + 3.4 * u, WHITE); p.stroke(pts, w, col); };
+  const dotR = (x: number, y: number, r: number, col: string) => { p.dot(x, y, r + 1.7 * u, WHITE); p.dot(x, y, r, col); };
+  if (has("gloom") && HEAD_HP) { // a blue-grey shadow sliding down from the crown, and falling lines beside the head
+    const g = p.g, mt = g.getTransform(), sc = Math.hypot(mt.a, mt.b);
+    p.clip(HEAD_HP, () => { g.save(); g.filter = "blur(" + (9 * u * sc).toFixed(1) + "px)";
+      p.poly([[cx - 80 * u, cy - 90 * u], [cx + 80 * u, cy - 90 * u], [cx + 80 * u, cy - 24 * u], [cx - 80 * u, cy - 14 * u]], "rgba(70,78,140,0.55)", 0); g.restore(); });
+  }
+  if (has("gloomlines")) {
+    for (let j = 0; j < 4; j++) rim([[mk[0] - sd * j * 4.5 * m, mk[1] - 10 * m + (j % 2) * 2 * m], [mk[0] - sd * j * 4.5 * m, mk[1] + 8 * m - (j === 3 ? 4 * m : 0)]], 2.4 * u, "#4b3fa6");
+  }
+  if (has("blush")) for (const ex of eyes) for (const j of [-1, 0, 1]) { // three short pink hatch strokes under each eye
+    const bx = ex + (ex < cx ? -2 : 2) * u + j * 3.4 * u, by = cy + 10 * u;
+    p.stroke([[bx - 1 * u, by + 1.6 * u], [bx + 1 * u, by - 1.6 * u]], 1.7 * u, "#f08a96");
+  }
+  if (has("flush") && HEAD_HP) { // red heat filling the head from the crown down to the eyes
+    const g = p.g, mt = g.getTransform(), sc = Math.hypot(mt.a, mt.b);
+    p.clip(HEAD_HP, () => { g.save(); g.filter = "blur(" + (10 * u * sc).toFixed(1) + "px)";
+      p.poly([[cx - 80 * u, cy - 90 * u], [cx + 80 * u, cy - 90 * u], [cx + 80 * u, cy - 22 * u], [cx - 80 * u, cy - 14 * u]], "rgba(226,104,104,0.34)", 0); g.restore(); });
+  }
+  if (has("anger")) for (const [a, b] of [[[-1, -1], [-0.25, -0.25]], [[1, -1], [0.25, -0.25]], [[-1, 1], [-0.25, 0.25]], [[1, 1], [0.25, 0.25]]] as [P2, P2][])
+    rim(qpts([mk[0] + a[0] * 8 * m, mk[1] + a[1] * 8 * m], [mk[0] + (a[0] + b[0]) * 2.2 * m, mk[1] + (a[1] + b[1]) * 5.5 * m], [mk[0] + b[0] * 8 * m, mk[1] + b[1] * 8 * m], 6), 3 * u, "#e2453c");
+  if (has("bang")) for (const dx of [-5, 4]) { // !!
+    const x = mk[0] + dx * m, top = mk[1] - 12 * m;
+    p.poly([[x - 3.4 * m, top], [x + 3.4 * m, top + m], [x + 1.6 * m, top + 15 * m], [x - 1.4 * m, top + 15 * m]], "#e2453c", 0);
+    p.poly([[x - 3.4 * m, top], [x + 3.4 * m, top + m], [x + 1.6 * m, top + 15 * m], [x - 1.4 * m, top + 15 * m]], null, 1.6 * u);
+    dotR(x, top + 20 * m, 2.2 * m, "#e2453c");
+  }
+  if (has("question")) { const [x, y] = mk; rim([...qpts([x - 6 * m, y - 6 * m], [x - 5 * m, y - 15 * m], [x + 2 * m, y - 14 * m], 6),
+    ...qpts([x + 2 * m, y - 14 * m], [x + 9 * m, y - 9 * m], [x + 1 * m, y - 2 * m], 6).slice(1), [x, y + 3 * m]], 3.6 * u, "#2f6fd6");
+    dotR(x, y + 9 * m, 2.2 * m, "#2f6fd6"); }
+  if (has("spark")) for (const [a, l] of [[-150, 9], [-110, 11]] as P2[]) { // two thick yellow dashes
+    const r = rad(a), c = Math.cos(r) * -sd, sn = Math.sin(r);
+    rim([[mk[0] + c * 4 * m, mk[1] + 10 * m + sn * 4 * m], [mk[0] + c * (4 + l) * m, mk[1] + 10 * m + sn * (4 + l) * m]], 3.6 * u, "#f2b632");
+  }
+  if (has("xspark")) { const [x, y] = mk; // a yellow skewed cross with a tail
+    rim([[x - 7 * m, y - 5 * m], [x + 7 * m, y + 5 * m]], 3.2 * u, "#f2b632"); rim([[x + 3 * m, y - 9 * m], [x - 2 * m, y + 9 * m]], 3.2 * u, "#f2b632");
+    rim([[x + 7 * m, y - 4 * m], [x + 10 * m, y - 7 * m]], 3 * u, "#f2b632"); }
+  if (has("dizzy")) { const pts: P2[] = []; // a grey scribble spiral
+    for (let t = 0; t < 26; t++) { const a = t * 0.62, r = (3 + t * 0.32) * m; pts.push([mk[0] + Math.cos(a) * r * 1.2, mk[1] + Math.sin(a) * r * 0.8 + t * 0.28 * m]); }
+    rim(pts, 2.2 * u, "#6d6a7c"); }
+  if (has("dots")) for (const j of [0, 1, 2]) dotR(mk[0] - 4 * m * sd, mk[1] - 10 * m + j * 6.5 * m, 1.9 * m, INK);
+  if (has("star")) { const [x, y] = mk; // white rim first, then the gold star
+    const pts: P2[] = []; for (let j = 0; j < 4; j++) { const a = (j * Math.PI) / 2 - Math.PI / 2; pts.push([x + Math.cos(a) * 11 * m, y + Math.sin(a) * 11 * m]);
+      const b = a + Math.PI / 4; pts.push([x + Math.cos(b) * 3 * m, y + Math.sin(b) * 3 * m]); }
+    p.stroke([...pts, pts[0]], 3.4 * u, WHITE); p.poly(pts, "#f2c53a", 0); p.poly(pts, null, 1.6 * u); }
+  if (has("zzz")) for (const [j, sz] of [[0, 4], [1, 5.5], [2, 7.5]] as P2[]) { // z z Z rising away from the head
+    const x = mk[0] - sd * (j * 8 - 4) * m, y = mk[1] + 6 * m - j * 7 * m, h = sz * m;
+    rim([[x - h, y - h], [x + h, y - h], [x - h, y + h], [x + h, y + h]], 2.8 * u, "#2f6fd6");
+  }
+  if (has("shades")) { // pixel sunglasses: a bar and two stepped lenses with two white pixels each
+    const [e0, e1] = eyes, y = cy - 4 * u, px = 2.6 * u;
+    p.poly([[e0 - 14 * u, y - 2 * px], [e1 + 14 * u, y - 2 * px], [e1 + 14 * u, y - px], [e0 - 14 * u, y - px]], INK, 0);
+    for (const ex of [e0, e1]) {
+      const L = ex - 11 * u, Rr = ex + 11 * u;
+      p.poly([[L, y - px], [Rr, y - px], [Rr, y + 2 * px], [Rr - px, y + 2 * px], [Rr - px, y + 3 * px], [Rr - 3 * px, y + 3 * px], [Rr - 3 * px, y + 4 * px],
+        [L + 3 * px, y + 4 * px], [L + 3 * px, y + 3 * px], [L + px, y + 3 * px], [L + px, y + 2 * px], [L, y + 2 * px]], INK, 0);
+      p.poly([[L + px, y], [L + 2 * px, y], [L + 2 * px, y + px], [L + px, y + px]], WHITE, 0);
+      p.poly([[L + 3 * px, y + px], [L + 4 * px, y + px], [L + 4 * px, y + 2 * px], [L + 3 * px, y + 2 * px]], WHITE, 0);
+    }
   }
   if (ticks && F.fx?.includes("ticks")) for (const dg of [-62, -42, -22]) {
     const r = rad(dg), c = Math.cos(r) * sd, s = Math.sin(r);
@@ -559,6 +795,7 @@ const fxV = (p: Pen, F: FaceV, cx: number, cy: number, eyes: number[], u: number
 /** face v2 (front / 3-4). u = 1 % of the head path width W. Eyes 26u apart on the centre line, brows 20u up, mouth 20u
  *  down, everything slid toward the facing side. No blush, no catchlights. */
 let GLASS_DROP = 0;
+let HEAD_HP: P2[] | null = null;
 /** secondary motion (deg): hat, hair edge and curl swing this far behind the head (set per drawing by bodyFront/bodySide) */
 let DRAG = 0;
 let TALK = 0;
@@ -566,8 +803,12 @@ const talkMouth = (k: MouthK): MouthK => (TALK > 0.66 ? "O" : TALK > 0.3 ? "o" :
 let FACEX: { unibrow?: boolean; longNose?: boolean; mole?: boolean; chops?: string; flare?: number } = {};
 const faceFront = (p: Pen, cx: number, cy: number, W: number, exprIn: ExprIn, facing: number, look: number, lid: number, brim: boolean,
   skin: string, moustache?: string, stout = false, beard?: string, glasses = false, monocle = false) => {
-  const expr = exprName(exprIn), u = W / 100, F = FACE[expr as ExprV2] ?? FACE.neutral, V = FACE_V3 ? faceV(exprIn) : null, fx = cx + 7 * u * facing;
-  const ex = (!V && F.eye[0] === "shock" ? 12 : 13) * u, ey = cy;
+  // emote faces (v3.3): the features a touch smaller than the head (the head is wide) and the whole face set higher, so
+  // the eyes sit on the head's middle line with a big chin below the mouth, like the reference sheet
+  const V0 = FACE_V3 ? faceV(exprIn) : null, emo = !!V0?.emote;
+  const expr = exprName(exprIn), u = W / 100, F = FACE[expr as ExprV2] ?? FACE.neutral, V = V0, fx = cx + 7 * u * facing;
+  if (emo) cy -= 4 * u;
+  const ex = (V?.emote ? 16 : !V && F.eye[0] === "shock" ? 12 : 13) * u, ey = cy; EMOTE = !!V?.emote;
   for (const side of [-1, 1]) {
     const x = fx + side * ex, i = (facing ? side === facing : side > 0) ? 1 : 0;
     const kind = eyeKind(F.eye[i], lid);
@@ -576,6 +817,9 @@ const faceFront = (p: Pen, cx: number, cy: number, W: number, exprIn: ExprIn, fa
     const [dI, dO] = V ? browOf(V)[i] : F.brow, by = ey - BROW_Y * u;
     if (FACEX.unibrow) continue;
     if (!V && (kind === "shock" || kind === "shockHalf")) p.arc(x, by - 6 * u, 9 * u, 3 * u, 200, 340, 4 * u);
+    else if (V && V.emote) // emote brow: long, thin, softly arched, sitting high
+      browE(p, [x - side * 8 * u, by + dI * u], [x + side * 10.5 * u, by + dO * u], 3.6 * u, -(V.arch ?? 0.5) * 5 * u);
+    else if (V && V.arch) taperArc(p, [x - side * 8.5 * u, by + dI * u], [x + side * 8.5 * u, by + dO * u], 5.4 * u, 2.6 * u, -V.arch * 3 * u);
     else taper(p, [x - side * 8.5 * u, by + dI * u], [x + side * 8.5 * u, by + dO * u], 5 * u, 2.5 * u);
   }
   if (FACEX.unibrow) { // one thick black brow across both eyes: its ends follow the expression's outer brows, the middle the inner
@@ -596,9 +840,10 @@ const faceFront = (p: Pen, cx: number, cy: number, W: number, exprIn: ExprIn, fa
     p.poly(pts, FACEX.chops, 2.4 * u);
     for (let j = 0; j < 3; j++) p.stroke([[bx - side * 4 * u, by - 14 * u + j * 12 * u], [bx + side * 6 * k * u, by - 8 * u + j * 12 * u]], 1.4 * u, "#c9c4bc");
   }
-  const mx = cx + 8 * u * facing, my = cy + 20 * u;
+  const mx = cx + 8 * u * facing, my = cy + (emo ? 18 : 20) * u;
   if (V) { mouthV(p, V.mouth, mx, my, u); fxV(p, V, cx, cy, [fx - ex, fx + ex], u, facing < 0 ? -1 : 1, true); }
   else mouth(p, talkMouth(F.mouth), mx, my, u);
+  EMOTE = false;
   if (moustache) for (const s of [-1, 1])
     taper(p, [mx + s * 1.5 * u, cy + 12.5 * u], [mx + s * (stout ? 19 : 15) * u, cy + (stout ? 10.5 : 15) * u], stout ? 5.5 * u : 4.5 * u, 1.6 * u, moustache);
   if (beard) p.poly([[mx - 13 * u, cy + 29 * u], [mx + 13 * u, cy + 29 * u], [mx + 6 * u, cy + 46 * u], [mx, cy + 52 * u], [mx - 6 * u, cy + 46 * u]], beard, 2.4 * u);
@@ -620,7 +865,7 @@ const faceFront = (p: Pen, cx: number, cy: number, W: number, exprIn: ExprIn, fa
  *  outer edge of the widest eye (shock, 11u) stays at ~39u, well inside the head outline (~50u); the back is empty. */
 const faceSide = (p: Pen, hx: number, hy: number, W: number, exprIn: ExprIn, lid: number, brim: boolean, skin: string, moustache?: string, stout = false, beard?: string) => {
   const expr = exprName(exprIn), u = W / 100, F = FACE[expr as ExprV2] ?? FACE.neutral, V = FACE_V3 ? faceV(exprIn) : null, fc = hx + 17 * u, ey = hy;
-  const ex = (!V && F.eye[0] === "shock" ? 10.5 : 11) * u;
+  const ex = (V?.emote ? 13 : !V && F.eye[0] === "shock" ? 10.5 : 11) * u; EMOTE = !!V?.emote;
   const by = ey - BROW_Y * u;
   for (const side of [-1, 1]) {
     const i = side > 0 ? 1 : 0, x = fc + side * ex, kind = eyeKind(F.eye[i], lid);
@@ -646,6 +891,7 @@ const faceSide = (p: Pen, hx: number, hy: number, W: number, exprIn: ExprIn, lid
   const mx = fc + 1.5 * u, my = ey + 21 * u;
   if (V) { mouthV(p, V.mouth, mx, my, u, 0.8); fxV(p, V, hx, hy, [fc - ex, fc + ex], u, -1, false); }
   else mouth(p, talkMouth(F.mouth), mx, my, u, 0.8);
+  EMOTE = false;
   if (moustache) for (const s of [-1, 1])
     taper(p, [mx + s * 1.5 * u, ey + 13.5 * u], [mx + s * (stout ? 15 : 12) * u, ey + (stout ? 11.5 : 15.5) * u], stout ? 5 * u : 4.2 * u, 1.6 * u, moustache);
   if (beard) p.poly([[mx - 11 * u, ey + 29 * u], [mx + 11 * u, ey + 29 * u], [mx + 5 * u, ey + 45 * u], [mx, ey + 50 * u], [mx - 5 * u, ey + 45 * u]], beard, 2.4 * u);
@@ -896,6 +1142,9 @@ export type FrontOpts = {
   flare?: number;
   /** 0..1: the face skin warms to red (strain, rage) a frame at a time, instead of swapping to a red outfit */
   flush?: number;
+  /** RIG (rig.ts): hand targets in design px; pelvis shift sideways (px, feet planted); pelvis drop (px, knees bend);
+   *  shoulders raised (px, breath / shrug) */
+  handR?: [number, number]; handL?: [number, number]; hipX?: number; sink?: number; shoulder?: number;
 };
 
 const footStroke = (p: Pen, a: P2, b: P2, w: number, col: string) => {
@@ -1107,7 +1356,8 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   const tall = (1 + Bd.torso + Bd.legs) * HH, sole = 975;
   // body bob 5 % (march) / 3 % (stroll) of the height, lowest at contact (phase 0 and 0.5)
   const bob = mode === "march" ? 0.025 * tall * Math.cos(2 * two * phase) : mode === "stroll" ? 0.015 * tall * Math.cos(2 * two * phase) : 0;
-  const torsoBot = mode === "sit" ? sole - 0.2 * HH : sole - Bd.legs * HH + bob;
+  const hipX = opts.hipX ?? 0, sinkY = opts.sink ?? 0, rigLegs = opts.hipX !== undefined || opts.sink !== undefined;
+  const torsoBot = mode === "sit" ? sole - 0.2 * HH : sole - Bd.legs * HH + bob + sinkY;
   const chin = torsoBot - Bd.torso * HH, hc = chin - H.b, crown = hc - H.b, hipY = torsoBot - 0.12 * HH;
   const thick = thickAngle(light), ow = 5 * u;
   const legCol = mix(o.pants, INK, 0.55), armCol = mix(o.jacket, INK, 0.5), footCol = o.boots;
@@ -1135,6 +1385,17 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
       p.stroke([[fx, sole - 0.4 * HH], [fx + side * u, fy]], legW, legCol);
       footStroke(p, [fx - side * 3 * u, fy], [fx + side * 12 * u, fy + u], footW, footCol);
     }
+  } else if (rigLegs && mode === "stand") {
+    // RIG: planted feet, the pelvis free: each leg is two equal bones solved hip -> ankle (knee mostly toward the lens)
+    const y0 = sole - Bd.legs * HH - 0.12 * HH;
+    for (const side of [-1, 1]) {
+      const fx = 300 + side * 22 * u, fy = sole - 4 * u, h: P2 = [300 + side * 15 * u + hipX, hipY];
+      const Lr = Math.hypot(7 * u, fy - y0) * 1.006, d = Math.min(Math.hypot(fx - h[0], fy - h[1]), Lr * 0.999);
+      const bow = Math.sqrt(Math.max(0, (Lr / 2) ** 2 - (d / 2) ** 2)), nx = (fy - h[1]) / d, ny = -(fx - h[0]) / d, sgn = nx * side >= 0 ? 1 : -1;
+      const k: P2 = [(h[0] + fx) / 2 + sgn * nx * bow * 0.3, (h[1] + fy) / 2 + sgn * ny * bow * 0.3];
+      p.stroke(curve(h, k, [fx, fy]), legW, legCol);
+      footStroke(p, [fx - side * 3 * u, fy], [fx + side * 13 * u, fy + 0.5 * u], footW, footCol);
+    }
   } else {
     const L = mode === "march" ? lift * 1.25 : mode === "stroll" ? lift * 0.55 : 0;
     for (const [side, ph] of [[-1, 0], [1, 0.5]] as const) {
@@ -1152,12 +1413,12 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   // ---- upper body: rotates about the hips (tilt + a small weight-shift sway on every step) ----
   const sway = mode === "march" ? 1.6 * Math.sin(two * phase) : mode === "stroll" ? 1.0 * Math.sin(two * phase) : 0;
   const A = tilt + sway + (opts.lean ?? 0);
-  p.rot = A ? [rad(A), 300, hipY] : null;
+  p.rot = A || hipX ? [rad(A), 300, hipY, hipX, 0] : null;
   const dress = !!o.dress && mode !== "sit" && mode !== "fall";
   const T: Blob = { a: ((Bd.tw / 2) * W) / 1.06, b: 0.5 * (torsoBot - (chin - 0.25 * HH)), nTop: 2.2, nBot: 2.6, egg: o.build === "stout" ? 0.17 : 0.12,
     asym: 0.04 * facing, rot: 0, noise: 0.006, seed: seed + 7 };
   const tcx = 300 + 3 * u * facing, tcy = torsoBot - T.b, tp = blobPts(tcx, tcy, T);
-  const sh = (side: number): P2 => [tcx + side * 0.85 * T.a, chin + 0.12 * HH];
+  const sh = (side: number): P2 => [tcx + side * 0.85 * T.a, chin + 0.12 * HH - (opts.shoulder ?? 0)];
   const hang = (side: number, fwd: number): [P2, P2, P2] => {
     const S = sh(side), ex = tcx + side * (1.12 * T.a + 4 * u);
     const hx = ex + side * 3 * u - side * 6 * u * Math.max(0, fwd) + side * 4 * u * Math.max(0, -fwd);
@@ -1230,6 +1491,20 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     const k = clamp(opts.armK, opts.armRaw ? -0.3 : 0, opts.armRaw ? 1.4 : 1), e = opts.armRaw ? k : k * k * (3 - 2 * k);
     arms.forEach((a, i) => { const h = hang(i ? 1 : -1, 0); a.pts = [lerp2(h[0], a.pts[0], e), lerp2(h[1], a.pts[1], e), lerp2(h[2], a.pts[2], e)]; });
   }
+  // RIG: design-space hand targets: the arm is solved (two equal bones) from the shoulder to this point after the pose +
+  // armK blend. The lean and the pelvis shift are cancelled, so the hand lands exactly there (rig.ts drives these).
+  const solve = (side: number, Hd: P2): Arm => {
+    const S = sh(side), q = A || hipX ? rotAbout([Hd[0] - hipX, Hd[1]], -rad(A), [300, hipY]) : Hd, Lb = 0.62 * HH;
+    let dx = q[0] - S[0], dy = q[1] - S[1], d = Math.hypot(dx, dy) || 1;
+    const dm = Math.min(d, 2.55 * Lb); const tq: P2 = [S[0] + (dx * dm) / d, S[1] + (dy * dm) / d]; dx = tq[0] - S[0]; dy = tq[1] - S[1]; d = dm;
+    // rubber hose: the bend is capped (a soft bow, never a chicken wing jutting out of the frame) and it bows down first
+    const h = Math.min(0.42 * Lb, Math.sqrt(Math.max(0, Lb * Lb - (d / 2) ** 2))), n1: P2 = [-dy / d, dx / d], n2: P2 = [dy / d, -dx / d];
+    const n = 0.5 * n1[0] * side + n1[1] > 0.5 * n2[0] * side + n2[1] ? n1 : n2;
+    const E: P2 = [S[0] + dx / 2 + n[0] * h, S[1] + dy / 2 + n[1] * h];
+    return { pts: [S, E, tq], front: Math.abs(tq[0] - tcx) < 0.9 * T.a && tq[1] > chin };
+  };
+  if (opts.handR && mode !== "fall") { const a = solve(1, opts.handR); if (arms.length > 1) arms[1] = a; else arms.push(a); }
+  if (opts.handL && mode !== "fall") arms[0] = solve(-1, opts.handL);
   const drawArm = (a: Arm) => {
     p.stroke(curve(a.pts[0], a.pts[1], a.pts[2]), 5.2 * u, armCol);
     p.dot(a.pts[2][0], a.pts[2][1], (arm === "fist" && a === arms[arms.length - 1] ? 9 : 5.5) * u);
@@ -1331,23 +1606,25 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     p.dot(hx, hy, 5.5 * u);
   }
   // ---- head: rotates with the body, plus its own tilt about the chin ----
-  const Ah = A + headTilt, [cpx, cpy] = rotAbout([300, chin], rad(A), [300, hipY]);
-  p.rot = Ah ? [rad(Ah), 300, chin, cpx - 300, cpy - chin] : null;
+  const Ah = A + headTilt, [cpx0, cpy] = rotAbout([300, chin], rad(A), [300, hipY]), cpx = cpx0 + hipX;
+  p.rot = Ah || hipX ? [rad(Ah), 300, chin, cpx - 300, cpy - chin] : null;
   hatBehind(p, o, H, 300, hc, light, thick, ow, false);
   const hp = blobPts(300, hc, H);
-  p.shadedFill(hp, skin, mul(skin, SH_SKIN), light, H.a);
-  p.inkRing(hp, ow, thick);
+  headPaint(p, hp, H, 300, hc, skin, light);
+  const emoHead = FACE_V3 && !!faceV(expr).emote; // emote line art: a thinner head line, a little heavier low-left
+  p.inkRing(hp, emoHead ? ow * 0.72 : ow, thick, emoHead ? 0.3 : 0.45);
   DRAG = opts.drag ?? 0;
   hatOn(p, o, hp, H, 300, hc, light, seed, facing, false);
   const brim = BRIM.has(o.hat ?? "");
   GLASS_DROP = opts.glassesDrop ?? 0; TALK = opts.talk ?? 0;
   FACEX = { unibrow: o.unibrow, longNose: o.longNose, mole: o.mole, chops: o.chops, flare: opts.flare };
+  HEAD_HP = hp;
   faceFront(p, 300, hc, W, expr, facing, look, lid, brim, skin, o.moustache, o.build === "stout", o.beard, o.glasses, o.monocle);
-  FACEX = {}; GLASS_DROP = 0;
+  FACEX = {}; GLASS_DROP = 0; HEAD_HP = null;
   extras(p, o, H, 300, hc, u, brim, false);
   DRAG = 0;
   if (overHead) { // the hand with the phone / the receipt over the cheek
-    p.rot = A ? [rad(A), 300, hipY] : null;
+    p.rot = A || hipX ? [rad(A), 300, hipY, hipX, 0] : null;
     for (const a of arms) if (a.front) { drawArm(a); heldProp(p, prop as string, a.pts[2][0], a.pts[2][1], u); }
   }
   p.rot = null;
@@ -1545,7 +1822,7 @@ export const bodySide = (p: Pen, o: Outfit, opts: SideOpts) => {
   const hx = 300 + 4 * u;
   hatBehind(p, o, H, hx, hc, light, thick, ow, true);
   const hp = blobPts(hx, hc, H);
-  p.shadedFill(hp, skin, mul(skin, SH_SKIN), light, H.a);
+  headPaint(p, hp, H, hx, hc, skin, light);
   p.inkRing(hp, ow, thick);
   DRAG = opts.drag ?? 0;
   hatOn(p, o, hp, H, hx, hc, light, seed, 1, true);
@@ -1756,4 +2033,14 @@ export const fxBlob = (p: Pen, col: string) => {
   const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
   for (const [r, k] of [[0, 0], [0.5, 0.04], [0.64, 0.18], [0.76, 0.42], [0.87, 0.72], [0.95, 0.92], [1, 1]] as const) gr.addColorStop(r, mix(col, WHITE, k));
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+};
+
+/** RIG: the rest skeleton of a front card standing (no lean), in design px: shoulders, hanging hands, hip pivot, chin,
+ *  arm bone length. rig.ts places hand targets around it. */
+export const frontRig = (o: Outfit, seed = 1) => {
+  const Bd = BUILD[o.build ?? "adult"], H = headBlob(seed, Bd.a, 0), W = 2 * H.a, HH = 2 * H.b, u = W / 100;
+  const torsoBot = 975 - Bd.legs * HH, chin = torsoBot - Bd.torso * HH, Ta = ((Bd.tw / 2) * W) / 1.06;
+  const sh = (side: number): P2 => [300 + side * 0.85 * Ta, chin + 0.12 * HH];
+  const rest = (side: number): P2 => [300 + side * (1.12 * Ta + 7 * u), chin + 1.04 * HH];
+  return { u, HH, W, Ta, chin, hipY: torsoBot - 0.12 * HH, torsoH: Bd.torso * HH, bone: 0.62 * HH, sh, rest };
 };

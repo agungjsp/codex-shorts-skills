@@ -40,6 +40,8 @@ the summary does not cover a problem.
 | Director mode, token rules, stages, templates, hard rules | `references/WORKFLOW.md` |
 | Story beats, Formula B, Formula C (evolution ladder), script, thumbnails, colour script | `references/STORYTELLING.md` |
 | toon.ts, cast.ts, cardshade.ts, poses, acting numbers | `bible/characters.md` |
+| Spring rig for leads (rig.ts: overlap, planted feet, weight shift, eyes first) | `bible/characters.md` "Rig layer" |
+| Default face (v3.3 emote, 33 names), wide head v3, bald by default (hair only when the story needs it) | `bible/characters.md` "Face v3.3" |
 | Framing, camera grammar, story.ts data structure, readability traps | `bible/camera.md` |
 | Sets, lighting, world, paint, build, measured targets, assets | `bible/environment.md` |
 | Composer order, effects, QA gate, render scripts, disk, delivery | `references/RENDERING.md` |

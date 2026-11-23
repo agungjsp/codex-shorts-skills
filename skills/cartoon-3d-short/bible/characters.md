@@ -32,6 +32,39 @@ Each pose works with every outfit. Grow after each short and copy back to templa
 
 ---
 
+## Rig layer: `rig.ts` (springs + IK), approved 2026-11-18
+
+In `templates/rail/` and `templates/diorama/` (copy next to `toon.ts`). Test: `src/sandboxes/rigtest` (RigTest, old vs new).
+Use it for **lead characters in front view** instead of hand-keying `lean`/`armK` with `hit()`; the old curves stay for
+extras and quick props.
+
+- **Every part is a damped spring** chasing its own target (no canned bounce). Overlap comes from per-part delays:
+  pelvis 0 f → shoulders 1 → chest/lean 2 → hands 2 → head 4; **eyes −3 f (they move first)**.
+- **Anticipation** is automatic: any big change gets a small move the other way over the 4 f before it.
+- **Planted feet (IK):** `hipX` shifts the pelvis, `sink` drops it; the soles never slide, the knees bend.
+- **Life layer, always on:** weight moves to the other leg every ~3 s with contrapposto (chest leans back over the
+  feet), breath in the shoulders and pelvis, head drift, blinks on eye jumps and expression snaps.
+- **Hands** are world-space springs, so they trail every body move and travel on arcs (y slower than x).
+- **Talking:** each word kicks the head, pelvis and the gesturing hand by its stress (0..1); the springs damp it.
+- Face changes lead the body by 4 f (expression slides like `exprMorph`).
+
+Script it as beats (only what changes):
+```ts
+const BEATS: Beat[] = [
+  { f: 0, L: "palm" },
+  { f: 31, sink: 9 },                                                     // crouch: anticipation of the startle
+  { f: 36, sink: -3, lean: -9, shoulder: 9, R: "up", L: "up", look: 0.8 }, // startle
+  { f: 66, lean: 10, hipX: 10, R: "point", L: "hip", look: 0.9 },         // units: deg, u (= head width / 100)
+];
+const { fo } = rigPose(f, outfit, BEATS, words /* [frame, len, stress] */, exprSeq, seed);
+// stand() does NOT forward hipX/sink/shoulder/handR/handL yet: pass fo to person() (its FrontOpts) or bodyFront
+// directly, and skip stand()'s own sway/talkBeat/pops for this person (the rig already does them)
+```
+Hand poses: `rest palm up point shrug chin hip`. Add new ones in `handPoint()` (body frame, side-aware).
+Tune feel in `PART` (hz = speed, z = damping: lower z = more overshoot). Card stretch/roll pops are not needed with it.
+
+---
+
 ## Acting Principles (from 2026-11-06 gap study, `references/reports/acting_gap.md`)
 
 **Reference numbers (measured):**
@@ -139,6 +172,27 @@ Each pose works with every outfit. Grow after each short and copy back to templa
   - **Red face without an outfit swap:** `FrontOpts.flush` and `SideOpts.flush` (0..1) also fit rage. Slide the number
     instead of hard-cutting to a red-skin outfit.
 
+**Face v3.3 "emote" + head v3 — the default face (rail + diorama toon.ts, approved 2026-11-18 from the user's 20-face
+reference; sandbox src/sandboxes/rigtest, compositions FaceFamily / MatchSheet):**
+- Head v3: near-round and WIDE (`headBlob` a × 1.15, height 0.94 a), small asym/tilt/lumps, flat skin `#fbeadf`
+  (`SKIN`) with a soft grey-pink rim shade (`SH_RIM`, `headPaint()` = blurred inner fill), plum ink outline.
+- Face set high: with `emote: true` the face moves up 4u (eyes on the head's middle line, big chin below), eyes 16u
+  apart, mouth at +18u. Eye = small dark oval under a thick lid line (4.8u) that runs outward with a hook; `white` ring
+  eyes = white ovals, no pupil. Brows long, thin, softly arched, sitting high. Mouths are soft red `#d9675f`, tongue
+  `#f39d92` (only while `EMOTE` is on, other faces keep the old colours).
+- FaceV fields added: `emote` (use this style), `sit` (brow sits on the eye and cuts it, number or [back, front]),
+  `arch`, `big`, `shine`; mouth `cat` (":3"), `square` (1 = box shout, 2 = "D" laugh); fx `blush` (3 pink hatch strokes
+  under each eye, ONLY on the `blush` expression — the no-blush look rule stands elsewhere) and `flush` (red heat from
+  the crown down; `rage`). Sweat drops stay (awkward, annoyed, alarmed, pout, thinking, vexed, tired, nervous_ring).
+  No floating marks (?, !, anger cross, zzz): the user said "tidak perlu ada tanda".
+- 33 emote names: neutral, deadpan, awkward, unamused, annoyed, smirk, worried, plotting, alarmed, puzzled, delighted,
+  cringe, overwhelmed, gloom, thinking, unbothered, sleepy, cool, pout, yell, laugh_xd, smile_side, kiss, blush, vexed,
+  tired, nervous_ring, smug_content, rage, shout_xd, content, unimpressed. Older v3 names (smile, shock, angry, ...) still
+  draw the v3.1 face; prefer the emote names. Morphs between two emote faces slide as before.
+- **Bald by default (user rule 2026-11-18):** an Outfit with no `hat` draws no hair. Presets (PARENT etc.) are bald.
+  Add `hat: "hair"` (+ `hair` colour) or another hat only when the story needs it (a period look, telling two
+  characters apart, a woman with a bun); hair always sits above the brows (clear-face rule).
+
 ---
 
 ## Character Specs (final look values)
@@ -150,7 +204,7 @@ Each pose works with every outfit. Grow after each short and copy back to templa
 - Blinks every 0.5-2.3 s, lasting 4 frames
 - Tight contact shadow ~0.5 under feet + sun-direction tail by day
 - Golden rim: inner only (head/torso), never offset outer copy
-- Character ink: dark plum #241726 (#201628–#2f1d28 range), thicker on bottom/shadow side; eyes 0.26 W apart; 41 expressions (face v3)
+- Character ink: dark plum #241726 (#201628–#2f1d28 range), thicker on bottom/shadow side; default face = v3.3 emote (eyes 0.32 W apart, set high), head v3 wide; bald unless the story needs hair
 
 ---
 

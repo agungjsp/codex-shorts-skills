@@ -1,6 +1,6 @@
 # Claude Shorts Skills
 
-Three [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, and Minecraft short scripts. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
+Four [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, Minecraft short scripts, and code-driven Minecraft story videos. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
 
 ## Made with these skills
 
@@ -20,6 +20,7 @@ Every frame is rendered on a home PC with three.js inside Remotion; no AI video 
 | [`cartoon-3d-short`](skills/cartoon-3d-short) | 55-70 s vertical cartoon story shorts: 2D characters in a 3D world. Script formulas, voice-over, shot plan, camera, acting presets, sound mix, QA review agents and the final render. Looks: painted, PBR, paper diorama, Minecraft voxel. |
 | [`captions`](skills/captions) | Word-synced captions as a separate green-screen (and optional ProRes 4444 alpha) clip for After Effects, timed to the narration and kept clear of the Shorts UI. |
 | [`minecraft-shorts`](skills/minecraft-shorts) | Minecraft short scripts in English and Indonesian with two formulas ("What happens if...?" and the "how you built X" evolution ladder), an in-game test list and a Replay Mod shot list. |
+| [`minecraft-story`](skills/minecraft-story) | 2:15 "In this world / In this town" Minecraft story videos, built code-first: script and originality check, storyboard with a shared `LAYOUT.json` (set bboxes and named anchors), then a parallel production wave of sub-agents (one set-builder per set, a visual director, a camera director). Each agent may only write its own files, enforced by a `PreToolUse` hook; `compile_shots.mjs` merges the layers and catches clipping, cameras inside blocks and subjects outside the Shorts safe zone before anything touches the game. Takes run over RCON + Scarpet, recorded with ReplayMod. Docs are in Indonesian. |
 
 ## Install
 
@@ -28,6 +29,7 @@ Every frame is rendered on a home PC with three.js inside Remotion; no AI video 
    ```bash
    cp -r skills/* ~/.claude/skills/
    ```
+   For `minecraft-story`, also copy its sub-agents: `cp skills/minecraft-story/agents/*.md ~/.claude/agents/` and start a new Claude Code session.
 3. Install the tools the video skills use: Node 20+, [Remotion](https://www.remotion.dev/) with `@remotion/three`, Python 3 and ffmpeg.
 4. In Claude Code, ask for example: *"Use the cartoon short skill and make a short about the first elevator brake."*
 
