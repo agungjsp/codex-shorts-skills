@@ -23,11 +23,11 @@ Me-render, mengubah shot, lapisan, set, audio, atau script. Yang kurang dilapork
 
 ---
 1. `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md --audio projects/<slug>/audio/vo.wav` → catat durasi VO.
-2. Cek kelengkapan render: tiap shot di `SHOTLIST.md` harus punya `captures/<shot>/render.mp4`. Laporkan yang hilang (jangan render sendiri).
-3. Buat `projects/<slug>/captions.srt` dari beat VOICEOVER (bagi waktu proporsional jumlah kata terhadap durasi audio asli). Maks 2 baris, ≤ 32 karakter/baris.
+2. Cek kelengkapan render: `node SKILL/scripts/assemble.mjs projects/<slug> --check` (hanya membaca). Laporkan shot yang FAIL (jangan render atau menggabung sendiri; `final.mp4` dibuat orchestrator).
+3. Buat `projects/<slug>/captions.srt` dari beat VOICEOVER. Waktu diambil dari `audio/words.json` (timestamp kata asli); kalau file itu tidak ada, dari `audio/TIMING.md` dibagi proporsional jumlah kata. Maks 2 baris, ≤ 32 karakter/baris.
 4. `projects/<slug>/PUBLISH.md`: judul final (pilih terbaik dari TITLES), deskripsi 2–3 kalimat + 3 hashtag, 15 tags.
 5. Checklist QA (✅/❌) → juga tulis ke `QA.md`:
-   - VO 2:10–2:14; video final 2:15.0 (4050 frame @30fps)
+   - VO 2:10–2:14; `final.mp4` 2:15.0 (4050 frame @30fps, lihat `.wave/assemble.json`)
    - semua shot punya `render.mp4` + `commands.txt`; semua `shots/<shot>.json` hasil compile (`"compiled": true`, `"timing": "vo"`)
    - `CONTINUITY.md` tidak punya FAIL terbuka
    - semua karakter utama di CAST.md punya skin

@@ -4,13 +4,14 @@
 //        /script in env run torches([-10,65,-10],[10,65,10],4)
 //        /script in env run water([0,65,0],12,2)
 //        /script in env run drain([0,65,0],12,3)
-// Semua penempatan deterministik (spiral sudut emas), bukan rand() — take bisa diulang sama persis.
+// Semua penempatan deterministik (spiral sudut emas 137.5°), bukan rand() — take bisa diulang sama persis.
+// Trigonometri scarpet memakai DERAJAT.
 
 __config() -> {'scope' -> 'global', 'stay_loaded' -> true};
 
 ignite(center, radius, count) -> (
     loop(count,
-        a = _ * 2.39996323;
+        a = _ * 137.50776405;
         r = radius * sqrt((_ + 0.5) / count);
         p = [center:0 + round(r * cos(a)), center:1, center:2 + round(r * sin(a))];
         set(p, 'minecraft:fire')

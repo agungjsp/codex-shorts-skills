@@ -11,6 +11,7 @@ Aturan:
   - `MC-Story Client` — client yang connect ke `localhost`, isinya semua mod visual + BBS + ReplayMod + Iris
 - Catat versi tiap mod di `projects/<slug>/MODLIST.txt`. Jangan update di tengah project.
 - Schematic & build dibuat dari world 1.20.1 yang sama.
+- World server: **superflat** (`level-type=minecraft\:flat`, `generate-structures=false`). Terrain asli di dalam bbox set mengacaukan cek blok compile dan memperlambat build.
 
 ### Kenapa harus dedicated server lokal
 RCON cuma ada di dedicated server (bukan singleplayer). Dan `/tick freeze`, `/tick step`, `/player` (fake player) butuh Carpet. Kombinasi server lokal + RCON = semua aksi bisa dikirim dari script. Client tetap dipakai untuk melihat, merekam, dan render.
@@ -21,7 +22,7 @@ RCON cuma ada di dedicated server (bukan singleplayer). Dan `/tick freeze`, `/ti
 | Tool | Fungsi | Catatan |
 |---|---|---|
 | **RCON** (vanilla) | Kirim command dari Node/Python | `server.properties`: `enable-rcon=true`, `rcon.port=25575`, `rcon.password=...` |
-| **Carpet** | `/tick freeze`, `/tick step`, `/player <nama> spawn` | Wajib. Di 1.20.1 `/tick` belum ada di vanilla |
+| **Carpet** | `/tick freeze`, `/tick step`, `/player <nama> spawn` | Wajib. Di 1.20.1 `/tick` belum ada di vanilla. `/tick freeze` polos = **toggle**; `tick unfreeze` adalah command vanilla 1.20.3+. Pakai bentuk eksplisit yang ada di servermu dan tulis ke `.rcon.json` (`tick_freeze`, `tick_unfreeze`) |
 | **Scarpet** (di dalam Carpet) | Scripting in-game: spawn/modify entity, set block, event `__on_tick` | File `.sc` di `config/carpet/scripts/`; `/script load <app>` lalu `/script in <app> run <fn>(<args>)` (satu-satunya bentuk panggilan) |
 | **Mineflayer** (Node) | Bot player: pathfinding, dig, place, chat | Untuk "pemain" massal / aktor bot |
 | **Minecraft MCP server** | Bungkus Mineflayer jadi tool MCP → agent bisa `place_block`, `dig_block`, `move_to` | Opsional; bagus untuk improvisasi, bukan untuk shot final |
@@ -39,12 +40,12 @@ Helper di skill ini (path absolut `~/.claude/skills/minecraft-story/scripts/mc/`
 | **WorldEdit** (Fabric, server-side) | `//schem load`, `//paste`, `//set`, `//replace`, mask | Bisa dipanggil via RCON dengan `execute as <player> at <pos> run //paste` |
 | **Axiom** | Editor build tercepat, brush, stamp, import `.schem`, **Lua Script Brush**, Animated Rebuild | 1.20.1 tersedia; lisensi ARR/komersial untuk kerja profesional |
 | **Litematica** | Hologram preview schematic sebelum paste | Client-side |
-| **Python `mcschematic`** | Generate `.schem` dari kode (dipakai `set-builder`) | Butuh Python; kalau tidak ada, pakai mode `commands` |
+| **Python `mcschematic`** | Generate `.schem` dari kode (dipakai `set-builder`) | Opsional, butuh Python; default-nya mode `file` (`.mcfunction`) |
 | **Terra / WorldPainter** | Terrain prosedural, heightmap | Untuk vista luas / aerial |
 
 **Prinsip:** build besar jangan diklik. `set-builder` menghasilkan salah satu dari:
-- `build/<set>.mcfunction` — daftar `setblock`/`fill` (paling portable, jalan dari console)
-- `sets/<set>.schem` — untuk paste WorldEdit / Axiom
+- `sets/<set>/build/<set>.mcfunction` — daftar `setblock`/`fill` (default; dikirim `shot.mjs` saat prep, dan dibaca compile untuk cek blok)
+- `sets/<set>/<set>.schem` — untuk paste WorldEdit / Axiom (cek blok compile dilewati)
 
 ---
 
@@ -122,7 +123,7 @@ Kamera default: **ReplayMod** (deterministik, bisa diubah tanpa rekam ulang). BB
 8. Physics Mod, Distant Horizons, Effective, Wakes, Armor Statues
 
 **Tooling** (di luar game):
-9. Node 20+ → `SKILL/scripts/compile_shots.mjs`, `SKILL/scripts/mc/rcon.mjs`, `shot.mjs`; `npm i mineflayer` kalau perlu bot
+9. Node 18+ → `SKILL/scripts/compile_shots.mjs`, `SKILL/scripts/mc/rcon.mjs`, `shot.mjs`; `npm i mineflayer` kalau perlu bot
 10. FFmpeg di PATH
 11. Java 17 (untuk ReplayStudio / jar tooling)
 
@@ -144,7 +145,11 @@ Target realistis: **±75% shot bisa disiapkan lewat file/command**, sisanya tang
 | BBS konflik dengan OptiFabric, Dynamic FPS, TaCZ, Effective (beberapa versi) | Baca daftar konflik di halaman Modrinth BBS sebelum install |
 | Physics Mod + `/tick freeze` | Jangan digabung; matikan Physics untuk shot yang butuh freeze |
 | RCON tidak connect | Cek `enable-rcon`, port 25575, firewall, server sudah fully started |
+| Command "jalan" tapi tidak ada efek | RCON membalas error sebagai teks. `shot.mjs`/`rcon.mjs` menandainya `ERR`; baca barisnya |
+| `fill`/`summon` gagal "not loaded" | Chunk set belum dimuat → `forceload add` (otomatis di section `pre`) |
 | `//paste` dari console gagal | WorldEdit butuh player context → `execute as <player> at <pos> run //paste` |
 | `/tick freeze` bikin partikel/air diam | Benar; unfreeze saat take, freeze hanya untuk build & inspeksi |
+| `/tick freeze` dua kali = dunia jalan lagi | Toggle. Pakai bentuk eksplisit lewat `.rcon.json` |
+| Fake player memakai skin akun orang lain | Nama fake player = nama akun Mojang. Pakai nama yang tidak dipakai akun mana pun + skin lokal |
 | ReplayMod render 1080×1920 dobel/tipis | Set resolution di render settings, jangan andalkan window size |
 | Mob despawn di tengah take | `persistence=true`, `doMobSpawning false` |

@@ -19,12 +19,12 @@ SHOTLIST.md  LAYOUT.json  shots/<shot>/base.json         ── GATE 5 → BACA 
 check_ownership.mjs --verify ─► compile_shots.mjs ─► shots/<shot>.json (compiled) ─► continuity-checker ── GATE 6
         │  Step 7: audio/TIMING.md + words.json → compile ulang (timing vo) ── GATE 7
         ▼
-shot.mjs --only prep ─► RCON ─► server: gamerule, fill/setblock, summon, script load
-shot.mjs --only take ─► tick unfreeze + script in <app> run <fn>(…)  (ReplayMod sedang merekam)
+shot.mjs --only prep ─► RCON ─► server: forceload, gamerule, fill/setblock, summon, script load
+shot.mjs --only take ─► unfreeze + script in <app> run <fn>(…)  (ReplayMod sedang merekam)
         │
-        ├── ReplayMod camera path (camera.keys, f/30 detik) ─► render ─► captures/<shot>/render.mp4
+        ├── ReplayMod camera path (camera.keys: pos + yaw/pitch, f/30 detik) ─► render ─► captures/<shot>/render.mp4
         ▼
-FFmpeg concat + VO ─► caption (skill captions) ─► final 2:15
+assemble.mjs (cek frame per shot → concat → mux mix.wav) ─► final.mp4 2:15 ─► caption (skill captions)
 ```
 
 | Lapisan | Pemilik | Dikerjakan oleh |
@@ -35,6 +35,7 @@ FFmpeg concat + VO ─► caption (skill captions) ─► final 2:15
 | Kamera | camera-director | ReplayMod camera path |
 | Gabung + cek | `compile_shots.mjs` | hasil `shots/<shot>.json` |
 | Take & render | orchestrator | `shot.mjs`, ReplayMod |
+| Audio mix, assembly | orchestrator | `audio/mix.wav`, `assemble.mjs` → `final.mp4` |
 | Caption/overlay | packager-qa + skill `captions` | Remotion |
 
 ## 2. Struktur folder project
@@ -68,8 +69,9 @@ Nama shot huruf kecil tanpa spasi (`s07`, `s12b`). Nama folder lapisan = nama sh
         "kid_mark": { "kind": "actor",     "at": [5, 1, 8], "facing": "+x" },
         "cam_low":  { "kind": "cam_entry", "at": [6, 2, 2] } } } } }
 ```
-- `origin` = pojok bawah bbox (y = lapisan tanah terbawah). `at` relatif ke origin.
+- `origin` = pojok bawah bbox (y = lapisan tanah terbawah). `at` relatif ke origin, **koordinat blok (bilangan bulat)**.
 - Anchor `actor`/`cam_entry` = blok udara tempat kaki/kamera berada (tanah di dy 0 → aktor dy 1).
+- Compile mengubah anchor jadi **tengah blok**: world = origin + at + [0.5, 0, 0.5]. `off [0,0,0]` = tepat di tengah blok; `off` hanya untuk bergeser dari situ.
 - Jarak antar bbox ≥ `spacing` (256). Grid origin `[i*512, 64, 0]`.
 
 ### 3b. `base.json` (storyboard-director)
@@ -89,37 +91,40 @@ Nama shot huruf kecil tanpa spasi (`s07`, `s12b`). Nama folder lapisan = nama sh
 ```json
 { "time": 6000, "weather": "clear",
   "light": ["setblock 520 66 4 minecraft:light[level=12]"],
-  "actors": [ { "id": "kid1", "type": "minecraft:villager", "anchor": "kid_mark", "off": [0.5, 0, 0.5],
+  "actors": [ { "id": "kid1", "type": "minecraft:villager", "anchor": "kid_mark", "off": [0, 0, 0],
                 "face": "well", "nbt": "{Age:-24000}" } ],
   "scarpet": [ { "app": "crowd", "fn": "wander",
                  "args": ["minecraft:villager", 3, { "anchor": "well", "off": [0, 0, 0] }, 5, 2] } ] }
 ```
 - Arah aktor: `facing` (`+z`…), `face` (anchor/aktor yang dilihat), atau `yaw`. Tanpa semuanya, dipakai `facing` anchor.
-- `actors[].fake` = Carpet fake player (`player <nama> spawn at …`).
+- `actors[].fake` = Carpet fake player (`player <nama> spawn at …`). Prep mengeluarkan semua fake player project (`player <nama> kill`) sebelum spawn.
+- Mob aktor default `NoAI:1b, Silent:1b, Invulnerable:1b` (diam di tanda). `"ai": true` = pakai AI asli (akan berjalan sendiri).
 - Argumen scarpet `{anchor|actor, off}` diubah compile jadi `[x, y, z]`.
 
 ### 3e. `camera.json` (camera-director)
 `engine move size keys notes`
 ```json
 { "engine": "replaymod", "move": "parallax", "size": "MS",
-  "keys": [ { "t": 0, "pos": { "anchor": "kid_mark", "off": [0.4, 0.6, -6] }, "look": { "actor": "kid1", "off": [0.6, -0.6, 0] }, "fov": 60 },
-            { "t": 1, "pos": { "anchor": "kid_mark", "off": [1.0, 0.6, -6] }, "look": { "actor": "kid1", "off": [0.6, -0.6, 0] }, "fov": 60 } ] }
+  "keys": [ { "t": 0, "pos": { "anchor": "kid_mark", "off": [-0.1, 0.6, -6.5] }, "look": { "actor": "kid1", "off": [0.6, -0.6, 0] }, "fov": 60 },
+            { "t": 1, "pos": { "anchor": "kid_mark", "off": [0.5, 0.6, -6.5] }, "look": { "actor": "kid1", "off": [0.6, -0.6, 0] }, "fov": 60 } ] }
 ```
 - `t` 0..1 naik, key pertama 0, terakhir 1. Frame dihitung compile dari timing.
-- `{actor}` = titik mata aktor (kaki + 1.62). `fov` vertikal, default 70.
+- `{actor}` = titik mata aktor (kaki + 1.62). `fov` vertikal, default 70. **Satu fov per shot** (fov berubah → WARN).
+- Compile menambahkan `yaw`/`pitch` (derajat Minecraft: yaw 0 = +z, 90 = −x; pitch + = menunduk) ke tiap key, untuk ReplayMod dan `/tp`.
 
 ### 3f. Hasil compile `shots/<shot>.json` (dibuat `compile_shots.mjs`)
 ```json
 { "compiled": true, "shot": "s03", "set": "well", "size": "MS",
   "start_frame": 186, "frames": 3864, "fps": 30, "timing": "vo",
-  "pre": ["gamerule doDaylightCycle false", "…", "time set 6000", "weather clear", "tick freeze"],
+  "pre": ["forceload add 512 0 528 16", "gamerule doDaylightCycle false", "…", "time set 6000", "weather clear", "tick freeze"],
+  "fakes_all": ["Ruby"],
   "build": { "mode": "file", "file": "sets/well/build/well.mcfunction", "origin": [512, 64, 0],
              "commands": ["setblock 520 66 4 minecraft:light[level=12]"] },
-  "actors": [ { "id": "kid1", "type": "minecraft:villager", "at": [517.5, 65, 8.5], "yaw": -101.31, "nbt": "{Age:-24000}" } ],
-  "scarpet": [ { "app": "crowd", "fn": "wander", "args": ["minecraft:villager", 3, [520, 65, 8], 5, 2] } ],
+  "actors": [ { "id": "kid1", "type": "minecraft:villager", "at": [517.5, 65, 8.5], "yaw": -90, "nbt": "{Age:-24000}" } ],
+  "scarpet": [ { "app": "crowd", "fn": "wander", "args": ["minecraft:villager", 3, [520.5, 65, 8.5], 5, 2] } ],
   "camera": { "engine": "replaymod", "move": "parallax", "size": "MS",
-              "keys": [ { "t": 0, "f": 0, "pos": [517.4, 65.6, 2], "look": [518.1, 66.02, 8.5], "fov": 60 },
-                        { "t": 1, "f": 3864, "pos": [518, 65.6, 2], "look": [518.1, 66.02, 8.5], "fov": 60 } ] },
+              "keys": [ { "t": 0, "f": 0, "pos": [517.4, 65.6, 2], "look": [518.1, 66.02, 8.5], "yaw": -6.147, "pitch": -3.676, "fov": 60 },
+                        { "t": 1, "f": 3864, "pos": [518, 65.6, 2], "look": [518.1, 66.02, 8.5], "yaw": -0.881, "pitch": -3.697, "fov": 60 } ] },
   "post": [], "render": { "w": 1080, "h": 1920, "fps": 30, "out": "captures/s03/render.mp4" } }
 ```
 
@@ -136,6 +141,7 @@ node SKILL/scripts/compile_shots.mjs projects/<slug> [--shot s01,s02] [--partial
   - Dari `audio/TIMING.md` (+ `start_word` dari `audio/words.json`).
   - Tanpa TIMING.md dipakai `est_frames` (`timing: "estimate"`).
   - Total harus 4050. Dengan timing VO, meleset = FAIL.
+- Kamera ReplayMod dengan `fov` berbeda antar key → WARN.
 - Laporan per shot OK / WARN / FAIL ditulis ke `.wave/compile.json`. Tiap FAIL menyebut file dan pemiliknya. Shot yang FAIL tidak punya file hasil compile.
 
 ### 3h. `check_ownership.mjs`
@@ -151,7 +157,9 @@ node SKILL/scripts/check_ownership.mjs projects/<slug> --verify          # sesud
 
 ## 4. Alur satu shot (Step 8)
 
-Set dibangun sekali per set: `node SKILL/scripts/mc/rcon.mjs --file projects/<slug>/sets/<set>/build/<set>.mcfunction`.
+Set tidak dibangun terpisah: `prep` memuat chunk set (`forceload add`, baris pertama `pre`) lalu mengirim file build + delta.
+`shot.mjs` membaca balasan server: balasan error ("Unknown or incomplete command", "is not loaded", error scarpet, …) = **ERR**, shot berhenti (kecuali `--continue`). `kill`/`player … kill`/`forceload` yang "gagal" karena tidak ada yang perlu dikerjakan diabaikan.
+Command freeze diambil dari `.rcon.json` (`tick_freeze`, `tick_unfreeze`) — di Carpet 1.20.1 `tick freeze` polos adalah toggle.
 
 1. **Dry run**
    `node SKILL/scripts/mc/shot.mjs projects/<slug>/shots/s12.json --dry`
@@ -159,17 +167,17 @@ Set dibangun sekali per set: `node SKILL/scripts/mc/rcon.mjs --file projects/<sl
 2. **Prep**
    `node SKILL/scripts/mc/shot.mjs projects/<slug>/shots/s12.json --run --only prep`
    - `prep` = `pre,build,actors,load`.
-   - Hasilnya: dunia beku, aktor lama dibersihkan (`kill @e[tag=mcs_actor]`), set + delta + aktor siap, app scarpet ter-load.
-3. **Inspeksi framing** (manual): spectator ke posisi `camera.keys[0].pos`.
+   - Hasilnya: chunk dimuat, dunia beku, aktor + kerumunan lama dibersihkan (`kill @e[tag=mcs_actor]`), fake player lama dikeluarkan, set + delta + aktor siap, app scarpet ter-load.
+3. **Inspeksi framing** (manual): ketik `/tp @s <pos> <yaw> <pitch>` yang tercetak di `captures/<shot>/commands.txt`.
    - Salah → perbaiki lapisan pemiliknya (panggil ulang agentnya), compile ulang, ulangi 2.
    - Jangan edit `s12.json`.
 4. **Take**
    - Start recording ReplayMod.
    - `node SKILL/scripts/mc/shot.mjs projects/<slug>/shots/s12.json --run --only take`
-   - `take` = `tick unfreeze` → `script in <app> run <fn>(<args>)`.
+   - `take` = unfreeze → `script in <app> run <fn>(<args>)`.
    - Tunggu `frames / 30 + 1` detik → stop → `captures/s12/take01.mcpr`.
-5. **Kamera**: Camera Path ReplayMod dari `camera.keys` (detik = `f / 30`).
-6. **Render**: 1080×1920, 30 fps, shader aktif → `captures/s12/render.mp4`.
+5. **Kamera**: Camera Path ReplayMod dari `camera.keys` (`pos`, `yaw`, `pitch`; detik = `f / 30`). Panjang path = `frames / 30` detik atau sedikit lebih.
+6. **Render**: 1080×1920, 30 fps, shader aktif, FOV game = `fov` shot → `captures/s12/render.mp4`.
 7. **Catat**: satu baris di `captures/NOTES.md` (shot, take yang dipakai, masalah, keputusan).
 
 Section shot.mjs: `pre build actors load take post`. Grup: `prep` = pre,build,actors,load. (`scarpet` = alias lama untuk load,take.)
@@ -192,6 +200,7 @@ Lokasi app: `<server>/config/carpet/scripts/*.sc`.
 ```
 - String pakai **kutip tunggal**. List pakai `[a, b, c]`.
 - **Semua argumen diisi**. App tidak memakai default.
+- `sin`/`cos`/`atan2` scarpet memakai **derajat**. Append ke list: `l += x` (bukan `l + [x]`). Hapus entity: `modify(e, 'remove')`.
 - Jangan pakai `script run call('app','fn')` atau `script invoke`. Pakai satu bentuk saja supaya log dan dokumentasi seragam.
 - Di shot JSON: `{ "app": "crowd", "fn": "wander", "args": [...] }`. shot.mjs membuat command-nya sendiri. String biasa ditolak.
 
@@ -201,7 +210,7 @@ Template di `SKILL/scripts/mc/scarpet/`:
 | `crowd.sc` | spawn kerumunan, jalan berbaris, wander, stop, despawn |
 | `wall.sc` | bangun tembok lingkaran bertahap (untuk timelapse), plus bibir tembok |
 | `env.sc` | nyalakan api bertahap, naikkan level air, pasang obor massal |
-| `actor.sc` | gerakkan satu entity sepanjang waypoint, hadapkan ke arah gerak |
+| `actor.sc` | gerakkan entity (boleh beberapa sekaligus, satu `follow` per aktor) sepanjang waypoint, hadapkan ke arah gerak |
 
 Contoh panggilan lengkap ada di header tiap `.sc`.
 
@@ -210,6 +219,7 @@ Prinsip penulisan app:
 - Gerak di `__on_tick` (20 tps), bukan di `task`/timer.
 - Tanpa `rand()` untuk hal yang harus sama tiap take.
 - Selalu sediakan `stop()` dan `clear()`.
+- Mob yang di-spawn app diberi tag `mcs_actor` (NBT `Tags`) supaya `kill @e[tag=mcs_actor]` di prep membersihkannya.
 
 ## 6. Determinisme (wajib)
 
@@ -259,9 +269,11 @@ Kamera eye level (y mata aktor ±0.3) kecuali cerita butuh lain. Sumbu 180° dij
 ## 8. Render & assembly
 
 1. Render per shot → `captures/<shot>/render.mp4` (H.264, 1080×1920, 30 fps, CRF 16–18).
-2. Concat sesuai urutan `start_frame`:
-   `ffmpeg -f concat -safe 0 -i list.txt -c copy cut.mp4`
-3. Mux audio: `ffmpeg -i cut.mp4 -i audio/mix.wav -c:v copy -c:a aac -shortest final.mp4`
+2. Cek: `node SKILL/scripts/assemble.mjs projects/<slug> --check`
+   - render kurang frame dari `frames` → FAIL (render ulang shot itu); lebih → dipotong di akhir (WARN).
+3. Gabung + mux: `node SKILL/scripts/assemble.mjs projects/<slug>` → `final.mp4`
+   - urutan `start_frame`, tiap shot dipotong tepat `frames`, total dicek = 4050.
+   - audio `audio/mix.wav` (dibuat dari `vo.wav` + `audio/music/` kalau belum ada), dipanjangkan dengan senyap sampai 2:15. Tidak memakai `-shortest`.
 4. Caption: skill `captions` → green-screen layer (selalu diserahkan).
 5. QA akhir:
    - durasi **tepat 2:15.0**,
@@ -276,7 +288,12 @@ Kamera eye level (y mata aktor ±0.3) kecuali cerita butuh lain. Sumbu 180° dij
 | Command jalan tapi tidak ada efek | world salah / `execute` salah dimensi | `execute in minecraft:overworld run ...` |
 | `//paste` "no world edit session" | tidak ada player context | `execute as <player> at @s run //paste` |
 | Scarpet error di log | app belum di-load / nama fungsi salah / argumen kurang | `--only prep` (load), lalu `script in <app> run <fn>(semua argumen)` |
-| Mob diam saat take | dunia masih beku | jalankan lewat `--only take` (tick unfreeze lebih dulu) |
+| Mob diam saat take | dunia masih beku | jalankan lewat `--only take` (unfreeze lebih dulu); cek `tick_unfreeze` di `.rcon.json` |
+| Dunia malah jalan setelah prep kedua | `tick freeze` polos = toggle di Carpet 1.20.1 | isi `tick_freeze`/`tick_unfreeze` di `.rcon.json` dengan bentuk eksplisit |
+| `ERR … is not loaded` | chunk set belum dimuat | jalankan section `pre` (forceload) dulu; jangan kirim file build langsung tanpa prep |
+| Kerumunan menumpuk / tembok hanya busur | app scarpet memakai radian | scarpet memakai derajat — pakai app dari skill versi ini |
+| Aktor jalan pergi dari tanda | mob punya AI | default sudah `NoAI`; hapus `"ai": true` di visual.json |
+| assemble FAIL "kurang N frame" | camera path/render lebih pendek dari shot | panjangkan path ke `frames/30` detik, render ulang shot itu |
 | Animasi 1.5× lebih lambat | frame-step 1 tick per frame render | gerakkan di `__on_tick`, render 30 fps |
 | Mob hilang di tengah take | despawn | `PersistenceRequired:1b` (otomatis untuk aktor), `doMobSpawning false` |
 | Aktor dobel | take sebelumnya belum dibersihkan | prep selalu `kill @e[tag=mcs_actor]`; jangan summon manual |

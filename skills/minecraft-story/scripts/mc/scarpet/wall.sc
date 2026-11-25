@@ -20,10 +20,13 @@ global_bpt = 8;
 
 reset() -> (
     global_active = false;
+    global_bpt = 8;
     global_layer = 0;
     global_i = 0;
     'reset'
 );
+
+clear() -> reset();
 
 stop() -> (
     global_active = false;
@@ -55,7 +58,7 @@ __on_tick() -> (
         if (!global_active, return());
         r = global_radius;
         if (global_layer >= global_height, r = global_radius + global_lip);
-        a = 2 * 3.14159265 * global_i / global_n;
+        a = 360 * global_i / global_n;   // derajat (trigonometri scarpet memakai derajat)
         p = [
             global_center:0 + round(r * cos(a)),
             global_center:1 + global_layer,

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
-// Hitung kata + estimasi durasi SCRIPT.md (pengganti scripts/word_timing.py kalau Python tidak ada).
+// Hitung kata + estimasi durasi SCRIPT.md. SATU-SATUNYA sumber angka target (RULES §A mengutip dari sini):
+//   VO 2:10–2:14 (130–134 detik) pada narator 160–165 wpm → 347–368 kata. Yang mengikat adalah durasi audio asli (--audio).
 //   node scripts/word_count.mjs projects/<slug>/SCRIPT.md
 //   node scripts/word_count.mjs projects/<slug>/SCRIPT.md --audio audio/vo.wav
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const WPM = 160;
-const TARGET = { min: 340, max: 370, secMin: 132, secMax: 135 };
+const WPM = [160, 165];                       // kecepatan narator (lambat, cepat)
+const VO = { secMin: 130, secMax: 134 };      // target durasi VO; video final 135 detik (tail 1–5 detik)
+const TARGET = { min: Math.ceil((VO.secMin * WPM[0]) / 60), max: Math.floor((VO.secMax * WPM[1]) / 60), ...VO }; // 347–368
 
 const args = process.argv.slice(2);
 const file = args.find((a) => !a.startsWith("--"));
@@ -44,14 +46,14 @@ const text = voLines
 
 const words = text.split(/\s+/).filter((w) => /[a-zA-Z0-9]/.test(w));
 const count = words.length;
-const seconds = (count / WPM) * 60;
+const secSlow = (count / WPM[0]) * 60, secFast = (count / WPM[1]) * 60;
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 const okWords = count >= TARGET.min && count <= TARGET.max;
 
 console.log(`file    : ${file}`);
 console.log(`kata    : ${count}  (target ${TARGET.min}–${TARGET.max}) ${okWords ? "OK" : "DI LUAR TARGET"}`);
-console.log(`estimasi: ${fmt(seconds)} @ ${WPM} wpm  (target ${fmt(TARGET.secMin)}–${fmt(TARGET.secMax)})`);
+console.log(`estimasi: ${fmt(secFast)} @ ${WPM[1]} wpm … ${fmt(secSlow)} @ ${WPM[0]} wpm  (target VO ${fmt(TARGET.secMin)}–${fmt(TARGET.secMax)}; pastikan dengan --audio)`);
 
 if (audio) {
   try {

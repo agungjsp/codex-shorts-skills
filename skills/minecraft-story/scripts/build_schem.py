@@ -1,12 +1,12 @@
 """Helper set-builder (Minecraft Java 1.20.1). pip install mcschematic
-Contoh di sets/<set>.py:
-    import sys; sys.path.insert(0, "scripts")   # jalankan dari root skill/project
+Contoh di projects/<slug>/sets/<set>/<set>.py:
+    import sys; sys.path.insert(0, "<SKILL>/scripts")   # <SKILL> = folder skill minecraft-story
     from build_schem import *
     s = new()
     floor(s, 0, 0, 0, 12, 10, "minecraft:spruce_planks")
     hollow_box(s, 0, 1, 0, 12, 5, 10, "minecraft:stone_bricks")
     roof_gable(s, 0, 6, 0, 12, 10, "minecraft:dark_oak_stairs", "minecraft:dark_oak_planks")
-    save(s, "sets", "bakery")
+    save(s, "projects/<slug>/sets/bakery", "bakery")
 Koordinat: x kanan, y atas, z ke belakang. Ukuran (w,h,d) inklusif dari origin."""
 import mcschematic
 

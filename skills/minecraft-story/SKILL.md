@@ -15,6 +15,7 @@ Baca `RULES.md` sebelum mulai. Baca `PIPELINE.md` sebelum Step 5. Baca `TOOLS.md
 **Path absolut.** Semua script dipanggil dari folder skill:
 `SKILL = ~/.claude/skills/minecraft-story` → `node SKILL/scripts/...`.
 Jalankan dari root repo (tempat `projects/` dan `.rcon.json`).
+Folder skill di tempat lain? `node <folder-skill>/scripts/install.mjs` menulis ulang path di agent yang dipasang; `SKILL` di dokumen ini = folder itu.
 
 ## Prinsip pipeline
 1. **Yang bisa dikodekan, dikodekan.** World, blok, mob, prop, kamera, dan render berupa file + command.
@@ -65,7 +66,7 @@ projects/<slug>/
 | 9 | packager-qa | haiku | PUBLISH.md, captions.srt, QA.md |
 Step 0, 4, 7, 8 dikerjakan orchestrator.
 
-**Agent harus terpasang.** File sumber ada di `SKILL/agents/`, dan harus disalin ke `~/.claude/agents/` (README) sebelum dipakai. Kalau agent tidak muncul sebagai tipe subagent, hook-nya juga tidak jalan. Salin dulu, jangan jalankan wave tanpa kunci.
+**Agent harus terpasang.** File sumber ada di `SKILL/agents/`. Pasang dengan `node SKILL/scripts/install.mjs` (menyalin ke `~/.claude/agents/` dan menyesuaikan path hook), mulai sesi baru, lalu `node SKILL/scripts/doctor.mjs` → harus **0 FAIL**. Kalau agent tidak muncul sebagai tipe subagent atau path hook salah, kunci kepemilikan tidak jalan (tanpa peringatan). Jangan jalankan wave tanpa kunci.
 
 **Subagent sonnet gagal?** Ulangi agent yang sama dengan `model: opus`. Jangan kerjakan lapisannya sendiri di orchestrator, karena itu melanggar kepemilikan.
 
@@ -87,10 +88,19 @@ Ikuti `TOOLS.md` §8:
 1. Server 1.20.1 Fabric (Carpet + WorldEdit, `enable-rcon=true`), lalu tes `node SKILL/scripts/mc/rcon.mjs --check`.
 2. Client 1.20.1 Fabric (Iris + BBS + ReplayMod + skin loader) → connect `localhost`.
 3. Copy `SKILL/scripts/mc/scarpet/*.sc` ke `<server>/config/carpet/scripts/`.
-4. Isi `.rcon.json` di root repo.
-5. Tes satu shot kosong: `tick freeze` → `time set 6000` → summon 1 villager → `/script load crowd` → `/script in crowd run stop()` → render 2 detik.
+4. Isi `.rcon.json` di root repo. World server: **superflat** (`level-type=minecraft\:flat`, `generate-structures=false`) supaya terrain asli tidak masuk bbox set.
+5. **Kunci command freeze.** Di Carpet 1.20.1 `tick freeze` adalah TOGGLE dan `tick unfreeze` belum tentu ada. Di server: `/tick freeze status`, coba `/tick freeze on` dan `/tick freeze off`. Tulis yang berfungsi ke `.rcon.json`:
+   `"tick_freeze": "tick freeze on", "tick_unfreeze": "tick freeze off"`. `shot.mjs` memakai dua key itu.
+6. **Tes tiap app scarpet di game** (berdiri di area kosong, ganti koordinat dengan posisimu):
+   - `/script load crowd` → `/script in crowd run wander('minecraft:villager',12,[x,y,z],8,2)` → 12 villager tersebar melingkar (bukan menumpuk) → `/script in crowd run clear()` → semua hilang.
+   - `/script in crowd run march('minecraft:pillager',6,[x,y,z],[x+20,y,z],0.055)` → barisan bergerak ke +x dan menghadap arah jalan → `clear()`.
+   - `/script load wall` → `/script in wall run ring_now([x,y,z],10,4,'minecraft:stone_bricks',1)` → lingkaran penuh.
+   - `/script load env` → `/script in env run torches([x,y,z],[x+8,y,z+8],4)`.
+   - `/script load actor` → summon 1 villager bernama `tes` → `/script in actor run follow('tes',[[x,y,z],[x+5,y,z]],0.06)`.
+   Ada error di chat/log? Perbaiki app-nya dulu (catat di `scripts/mc/README.md`).
+7. `node SKILL/scripts/doctor.mjs --rcon` → 0 FAIL.
 
-Kalau langkah 5 gagal, jangan lanjut ke Step 8.
+Kalau langkah 5–7 gagal, jangan lanjut ke Step 8.
 
 Cek pipeline tanpa server: `node SKILL/tests/run_tests.mjs` → harus "0 gagal".
 
@@ -99,7 +109,7 @@ Hasilnya `FORMULA.md`: beat map + timing %, pola hook, ritme, device retensi, da
 
 ## Step 2 — Konsep + Script → `script-writer`
 1. 5 konsep (logline + aturan dunia + twist). **GATE 2a**: user pilih.
-2. `SCRIPT.md` (format RULES §C). Cek dengan `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md`. Target 340–370 kata, estimasi 2:12–2:15.
+2. `SCRIPT.md` (format RULES §C). Cek dengan `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md`. Target 347–368 kata (VO 2:10–2:14).
 3. Tampilkan script English (KEY WORDS CAPS), terjemahan Indonesia, dan 3 judul.
 
 ## Step 3 — Cek transformative → `originality-checker`
@@ -110,7 +120,8 @@ Gagal kalau: ada 6-gram yang sama, overlap 4-gram > 3%, atau premis/twist sama. 
 1. Dari SCRIPT.md: karakter utama + peran + 1 kalimat visual. **Id aktor = slug nama** (`ruby`, `kid1`).
 2. User upload skin PNG per karakter (nama file = id).
 3. Validasi: `node SKILL/scripts/check_skin.mjs projects/<slug>/assets/skins/`.
-4. Tulis `CAST.md`: id | file skin | tipe arm | warna dominan | ciri yang harus kelihatan.
+4. Tulis `CAST.md`: id | file skin | nama fake player / aktor BBS | tipe arm | warna dominan | ciri yang harus kelihatan.
+5. Pasang skin ke client (manual, sekali per karakter): untuk fake player lewat skin lokal CustomSkinLoader (file bernama nama fake player; lokasi folder: lihat dokumentasi CustomSkinLoader), untuk aktor BBS lewat form BBS. Nama fake player di CAST.md = nama yang dipakai visual-director (`"fake"`).
 
 **GATE 4.**
 
@@ -132,6 +143,7 @@ Tunjukkan ke user:
 **GATE 5.** Setelah ini `LAYOUT.json`, `base.json`, `SHOTLIST.md`, `SCRIPT.md` dan `CAST.md` jadi BACA SAJA.
 
 ## Step 6 — Wave Produksi (paralel)
+0. **Kunci aktif?** `node SKILL/scripts/doctor.mjs` → 0 FAIL. Kalau FAIL: `install.mjs`, sesi baru, ulangi.
 1. **Snapshot**: `node SKILL/scripts/check_ownership.mjs projects/<slug> --snapshot`
 2. **Spawn dalam SATU pesan**, semua `run_in_background`:
    - satu `set-builder` per set di LAYOUT (prompt baris pertama `SET: <set>`, lalu slug project),
@@ -156,27 +168,30 @@ Tunjukkan ke user:
 2. Ukur: `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md --audio projects/<slug>/audio/vo.wav`. Target VO 2:10–2:14.
 3. Tulis `audio/TIMING.md` (`| B01 | mulai | selesai | durasi |`, detik) dan `audio/words.json` (`[{w,s,e}]`) untuk `start_word`.
 4. **Compile ulang**: `compile_shots.mjs projects/<slug>`. Sekarang `timing: "vo"` dan total harus tepat 4050 frame.
-5. Musik + SFX list dari SHOTLIST.md (rekaman saja; tunjukkan daftar dulu).
+5. Musik + SFX list dari SHOTLIST.md (rekaman saja; tunjukkan daftar dulu). Musik ditaruh di `audio/music/`.
+   `audio/mix.wav` = milik orchestrator: taruh mix buatan sendiri di situ, atau biarkan `assemble.mjs` (Step 9) membuatnya dari `vo.wav` + file pertama di `audio/music/`.
+
+`TIMING.md` dan `words.json` harus dari timestamp kata audio asli (alignment, mis. Whisper word timestamps), bukan dibagi rata.
 
 **GATE 7** (timing terkunci).
 
 ## Step 8 — Take & render (orchestrator, code-driven)
 Detail di `PIPELINE.md` §4. Per shot:
-1. **Bangun set sekali per set**: `node SKILL/scripts/mc/rcon.mjs --file projects/<slug>/sets/<set>/build/<set>.mcfunction`.
+1. Client berdiri di set shot itu (mode spectator). Set tidak perlu dibangun terpisah: `prep` memuat chunk (`forceload`) dan membangun set.
 2. **Dry run**: `node SKILL/scripts/mc/shot.mjs projects/<slug>/shots/<shot>.json --dry`, lalu baca `captures/<shot>/commands.txt`.
 3. **Prep**: `--run --only prep` (pre, build, actors, load). Dunia beku, set dan aktor siap, app scarpet ter-load.
-4. **Inspeksi framing** (manual, cepat) dari posisi `camera.keys[0]`.
+   - Ada baris `ERR` atau "command GAGAL" → shot belum siap. Perbaiki penyebabnya, ulangi prep. Jangan lanjut ke take.
+4. **Inspeksi framing** (manual, cepat): ketik perintah `/tp @s …` yang tercetak di `commands.txt` (posisi + yaw/pitch `camera.keys[0]`).
    - Salah → perbaiki di **lapisan pemiliknya**.
    - Lalu compile ulang dan ulangi langkah 3.
-5. **Take**: mulai rekam ReplayMod → `--run --only take` (tick unfreeze, lalu scarpet) → tunggu `frames/30 + 1` detik → stop → `captures/<shot>/take01.mcpr`.
-6. **Kamera**: ReplayMod camera path dari `camera.keys` (f → detik = f/30).
+5. **Take**: mulai rekam ReplayMod → `--run --only take` (unfreeze, lalu scarpet) → tunggu `frames/30 + 1` detik → stop → `captures/<shot>/take01.mcpr`.
+6. **Kamera**: ReplayMod camera path dari `camera.keys`: tiap key punya `pos`, `yaw`, `pitch` dan `f` (detik = f/30). Satu `fov` per shot, diatur di opsi game sebelum render.
 7. **Render**: 1080×1920, 30 fps, shader aktif → `captures/<shot>/render.mp4`.
 8. **Catat** satu baris di `captures/NOTES.md`.
 
 Shot `[BBS]` dan `[ANIM]`: lihat PIPELINE.md §4b.
 
-## Step 9 — Packaging & QA → `packager-qa`
-1. Concat `captures/*/render.mp4` sesuai urutan `start_frame` → `cut.mp4`.
-2. Mux `audio/mix.wav` → final, durasi tepat 2:15.0 (4050 frame). Nama file = judul upload.
-3. `PUBLISH.md`, `captions.srt`. Caption green-screen pakai skill `captions` (selalu diserahkan).
-4. Checklist QA di `QA.md`.
+## Step 9 — Assembly (orchestrator) → Packaging & QA (`packager-qa`)
+1. **Cek render**: `node SKILL/scripts/assemble.mjs projects/<slug> --check`. Tiap shot harus punya `render.mp4` 1080×1920 dengan jumlah frame ≥ `frames`. Shot FAIL → render ulang shot itu saja.
+2. **Gabung + mux**: `node SKILL/scripts/assemble.mjs projects/<slug>` → `final.mp4`, tepat 4050 frame (2:15.0), audio dari `audio/mix.wav`. Laporan di `.wave/assemble.json`. Ganti nama file jadi judul upload setelah QA.
+3. `packager-qa`: `PUBLISH.md`, `captions.srt`, `QA.md`. Caption green-screen pakai skill `captions` (selalu diserahkan).

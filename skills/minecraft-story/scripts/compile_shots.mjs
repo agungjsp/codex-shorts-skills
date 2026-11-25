@@ -63,6 +63,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const isVec = (v) => Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && Number.isFinite(n));
 const FACING_YAW = { "+z": 0, "-x": 90, "-z": 180, "+x": -90 }; // Minecraft yaw: 0 = selatan (+z)
 const yawToward = (from, to) => { const d = sub(to, from); return r3((Math.atan2(-d[0], d[2]) * 180) / Math.PI); };
+const pitchToward = (from, to) => { const d = sub(to, from); return r3((-Math.atan2(d[1], Math.hypot(d[0], d[2])) * 180) / Math.PI); }; // Minecraft: + = menunduk
+const CENTER = [0.5, 0, 0.5]; // anchor = TENGAH blok (x, z); y = dasar blok. off [0,0,0] → aktor berdiri di tengah blok.
 
 // ---------- global ----------
 const issues = []; // {shot, level: FAIL|WARN, msg}
@@ -113,6 +115,8 @@ for (const sh of shotNames) {
   loaded.push({ sh, L });
 }
 loaded.sort((a, b) => (a.L.base.order ?? 1e9) - (b.L.base.order ?? 1e9) || a.sh.localeCompare(b.sh));
+// semua fake player di project: shot.mjs mengeluarkan mereka di tiap prep (fake player tidak kena `kill @e[tag=mcs_actor]`)
+const FAKES_ALL = [...new Set(loaded.flatMap(({ L }) => (L.visual?.actors ?? []).filter((a) => a?.fake).map((a) => String(a.fake))))].sort();
 
 // ---------- timing ----------
 const timing = readTiming();
@@ -140,7 +144,7 @@ for (const { sh, L } of loaded) {
   if (!TAGS.includes(base.tag)) fail(sh, `base.tag harus ${TAGS.join(" / ")}`);
   if (!SIZES.includes(base.size)) fail(sh, `base.size harus ${SIZES.join(" / ")}`);
   const box = bbox[setName];
-  const anchorPos = (name) => { const a = S.anchors?.[name]; return a && isVec(a.at) ? add(S.origin, a.at) : null; };
+  const anchorPos = (name) => { const a = S.anchors?.[name]; return a && isVec(a.at) ? add(add(S.origin, a.at), CENTER) : null; };
 
   // actors
   const actors = [];
@@ -155,7 +159,7 @@ for (const { sh, L } of loaded) {
     let yaw = a.yaw;
     if (yaw == null && a.facing) yaw = FACING_YAW[a.facing];
     if (yaw == null && a.face) { const tgt = anchorPos(a.face) ?? null; if (tgt) yaw = yawToward(at, tgt); else fail(sh, `actor ${a.id}: face "${a.face}" bukan anchor`); }
-    actors.push({ id: a.id, ...(a.fake ? { fake: a.fake } : { type: a.type ?? "minecraft:villager" }), at, yaw: yaw ?? 0, ...(a.nbt ? { nbt: a.nbt } : {}), ...(a.skin ? { skin: a.skin } : {}) });
+    actors.push({ id: a.id, ...(a.fake ? { fake: a.fake } : { type: a.type ?? "minecraft:villager" }), at, yaw: yaw ?? 0, ...(a.ai ? { ai: true } : {}), ...(a.nbt ? { nbt: a.nbt } : {}), ...(a.skin ? { skin: a.skin } : {}) });
   }
   for (const c of base.cast ?? []) if (!actorPos[c]) fail(sh, `cast "${c}" (base.json) tidak ditempatkan di visual.actors`);
   const resolveRef = (ref, what) => {
@@ -179,8 +183,11 @@ for (const { sh, L } of loaded) {
     const pos = resolveRef(k.pos, `camera.keys[${i}].pos`);
     const look = resolveRef(k.look, `camera.keys[${i}].look`);
     if (pos && !inBox(pos, box)) fail(sh, `kamera key ${i} di ${pos.join(",")} di luar bbox set ${setName}`);
-    camKeys.push({ t: k.t, f: Math.round((k.t ?? 0) * frames), pos, look, fov: k.fov ?? 70 });
+    const aim = pos && look && len(sub(look, pos)) > 1e-6 ? { yaw: yawToward(pos, look), pitch: pitchToward(pos, look) } : {};
+    camKeys.push({ t: k.t, f: Math.round((k.t ?? 0) * frames), pos, look, ...aim, fov: k.fov ?? 70 });
   });
+  if ((camera.engine ?? "replaymod") === "replaymod" && new Set(camKeys.map((k) => k.fov)).size > 1)
+    warn(sh, "camera.keys: fov berubah di dalam shot — camera path ReplayMod tidak punya keyframe FOV (cek versimu); pakai satu fov per shot, zoom lewat posisi");
   if (keys.length && keys[0].t !== 0) fail(sh, "camera.keys pertama harus t 0");
   if (keys.length && keys[keys.length - 1].t !== 1) fail(sh, "camera.keys terakhir harus t 1");
 
@@ -234,7 +241,8 @@ for (const { sh, L } of loaded) {
     _note: "HASIL compile_shots.mjs — jangan edit. Ubah lapisan di shots/<shot>/*.json lalu compile ulang.",
     shot: sh, title: base.title ?? "", tag: base.tag, size: base.size, set: setName,
     start_frame: frameOf[sh]?.start ?? 0, frames, fps: FPS, timing: timing ? "vo" : "estimate",
-    pre: [...GAMERULES, `time set ${visual.time}`, `weather ${visual.weather}`, "tick freeze"],
+    pre: [forceload(box), ...GAMERULES, `time set ${visual.time}`, `weather ${visual.weather}`, "tick freeze"],
+    fakes_all: FAKES_ALL,
     build: { mode: build.mode ?? "file", ...(build.file ? { file: build.file } : {}), ...(build.schem ? { schem: build.schem } : {}), origin: S.origin, commands: [...delta, ...light] },
     actors,
     scarpet,
@@ -273,6 +281,8 @@ for (const i of issues) console.log(`  ${i.level} ${i.shot}: ${i.msg}`);
 process.exitCode = failedShots.size ? 1 : 0;
 
 // ================= helpers =================
+// chunk set harus dimuat sebelum fill/summon lewat RCON (set berjarak ratusan blok dari player)
+function forceload(box) { return `forceload add ${Math.floor(box.min[0])} ${Math.floor(box.min[2])} ${Math.ceil(box.max[0])} ${Math.ceil(box.max[2])}`; }
 // ---- blok dari .mcfunction (fill / setblock) ----
 function isAir(b) { return AIRS.has(b); }
 function blockId(tok) { return String(tok).replace(/^minecraft:/, "").replace(/[[{].*$/, ""); }

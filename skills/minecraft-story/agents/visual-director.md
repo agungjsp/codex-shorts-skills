@@ -50,11 +50,13 @@ Per scene (rangkaian shot berurutan di set yang sama):
 ```
 - **actors**
   - Tiap id di `base.cast` wajib ada. `id` = slug nama di CAST.md (skin: `fake` = nama fake player / BBS actor).
-  - Posisi = `anchor` + `off` (blok). Kaki di tanah: `off[1] = 0` kecuali berdiri di atas blok yang ada di SPEC.
+  - Posisi = `anchor` + `off` (blok). Anchor = **tengah blok**, jadi `off [0,0,0]` = berdiri tepat di tanda. Kaki di tanah: `off[1] = 0` kecuali berdiri di atas blok yang ada di SPEC.
+  - Mob (`type`) di-summon diam (`NoAI`). Hanya kalau mob itu memang harus berjalan dengan AI asli: `"ai": true`.
+  - `fake` = nama fake player dari CAST.md (nama sama di semua shot).
   - Arah: `facing` (`+z`/`-z`/`+x`/`-x`), `face` (nama anchor yang dihadap), atau `yaw` (0 = +z, 90 = −x, 180 = −z, −90 = +x).
   - Jarak antar aktor ≥ 0.7 blok. Aktor yang berjalan menghadap arah jalannya.
 - **light**: hanya `setblock`/`fill` dengan `minecraft:light[level=N]`, lantern, atau glowstone/sea_lantern yang tersembunyi. Koordinat absolut di dalam bbox set (origin + lokal dari LAYOUT).
-- **scarpet**: `{app, fn, args}` — fungsi dari `SKILL/scripts/mc/scarpet/*.sc`, **semua argumen diisi**. Posisi ditulis `{ "anchor": ..., "off": [...] }` atau `{ "actor": id }`; compile mengubahnya ke [x,y,z]. Gerak massal saja; akting tokoh utama lewat BBS (`[BBS]`).
+- **scarpet**: `{app, fn, args}` — fungsi dari `SKILL/scripts/mc/scarpet/*.sc`, **semua argumen diisi**. `crowd` hanya menyimpan satu kerumunan (panggilan `wander`/`march` baru menghapus yang lama); `actor.follow` satu panggilan per aktor. Posisi ditulis `{ "anchor": ..., "off": [...] }` atau `{ "actor": id }`; compile mengubahnya ke [x,y,z]. Gerak massal saja; akting tokoh utama lewat BBS (`[BBS]`).
 - Tidak pernah beku: tiap shot punya gerak hidup (idle BBS, wander, partikel/api env).
 - Key lain DILARANG (`camera`, `build`, `set`, … ditolak compile).
 

@@ -56,7 +56,7 @@ Aturan:
 - **Jarak antar set ≥ 256 blok** (bbox ke bbox). Pakai grid: set ke-i → origin `[i*512, 64, 0]`.
 - bbox harus memuat SEMUA yang dilihat kamera **dan semua posisi kamera** (compile menolak kamera di luar bbox). Beri buffer 4–6 blok di sisi kamera.
 - `front` = sisi set yang menghadap kamera utama (`-z` | `+z` | `-x` | `+x`).
-- `anchors[].at` relatif ke origin. Anchor `actor` / `cam_entry` = **blok udara tempat kaki/kamera berada**. Tanah datar 1 lapis di dy 0 → aktor di tanah punya dy 1.
+- `anchors[].at` relatif ke origin, **koordinat blok (bilangan bulat)**. Anchor `actor` / `cam_entry` = **blok udara tempat kaki/kamera berada**. Tanah datar 1 lapis di dy 0 → aktor di tanah punya dy 1. Compile memakai tengah blok itu (x+0.5, z+0.5), jadi jangan menulis pecahan di `at`.
 - Anchor wajib:
   - `actor`: tiap tanda berdiri yang dipakai shot (plus `facing`).
   - `landmark`: tiap benda yang disebut `must_see` / `subject` (pintu, papan, sumur, tembok…).

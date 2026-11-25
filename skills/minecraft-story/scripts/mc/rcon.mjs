@@ -2,7 +2,7 @@
 // Minimal RCON client — no dependencies.
 // Usage:
 //   node rcon.mjs "time set day"
-//   node rcon.mjs --file sets/build/village_square.mcfunction
+//   node rcon.mjs --file projects/<slug>/sets/<set>/build/<set>.mcfunction
 //   node rcon.mjs --check
 // Config: flags > env (MC_RCON_HOST/PORT/PASS) > .rcon.json di cwd > default localhost:25575
 import net from "node:net";
@@ -12,6 +12,25 @@ import path from "node:path";
 const TYPE_AUTH = 3;
 const TYPE_EXEC = 2;
 const TYPE_RESPONSE = 0;
+
+// RCON tidak punya kode error: command yang gagal tetap dibalas sebagai teks biasa.
+// failureOf() mengenali balasan gagal dari Minecraft / Carpet / scarpet. null = dianggap berhasil.
+// "No blocks were filled" sengaja TIDAK dihitung gagal (build ulang set yang sama = idempoten).
+const FAIL_PATTERNS = [
+  /Unknown or incomplete command/i, /Incorrect argument for command/i, /<--\[HERE\]/,
+  /Unknown (block|entity|item|function|game ?rule|dimension|scoreboard)/i,
+  /is not loaded/i, /Expected (whitespace|integer|float|double|literal|'|")/i, /Invalid (integer|float|double|name|UUID|block|position|NBT)/i,
+  /Could not/i, /Unable to/i, /Failed to/i, /An unexpected error/i, /Error while/i, /Exception/i,
+  /No (entity|player) was found/i, /already logged on/i, /Can only manipulate existing players/i,
+  /No chunks were (marked|removed)/i,
+  /Too many blocks in the specified area/i,
+  /not found/i, /butuh minimal/i, /bad path/i, /uneven sizes/i, /Unknown function/i, /\bat pos \d+/i,
+];
+export function failureOf(response) {
+  const r = String(response ?? "");
+  const hit = FAIL_PATTERNS.find((re) => re.test(r));
+  return hit ? r.trim().split(/\r?\n/)[0].slice(0, 200) : null;
+}
 
 export class Rcon {
   constructor(opts = {}) {
@@ -103,9 +122,15 @@ export class Rcon {
       }
       req.parts.push(body);
       clearTimeout(req.idle);
+      // Server memecah balasan panjang jadi paket penuh (4096 byte). Paket yang tidak penuh = paket terakhir,
+      // jadi tidak perlu menunggu (tanpa ini tiap command makan ≥ 60 ms → build set ribuan command jadi menit).
+      if (Buffer.byteLength(body, "utf8") < 4000) {
+        this.pending.delete(id);
+        return req.settle(null, req.parts.join(""));
+      }
       req.idle = setTimeout(() => {
         this.pending.delete(id);
-        req.settle(null, req.parts.join("\n"));
+        req.settle(null, req.parts.join(""));
       }, 60);
     }
   }
@@ -225,6 +250,8 @@ async function main() {
     for (const cmd of commands) {
       try {
         const res = await rcon.send(cmd);
+        const bad = failureOf(res);
+        if (bad) throw new Error(`server menolak: ${bad}`);
         if (!cfg.quiet) console.log(`> ${cmd}${res ? `\n${res}` : ""}`);
       } catch (err) {
         failed++;

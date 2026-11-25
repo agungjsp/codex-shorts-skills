@@ -8,7 +8,22 @@
 // Format shot: lihat PIPELINE.md §3 (dibuat oleh scripts/compile_shots.mjs, jangan ditulis tangan).
 import fs from "node:fs";
 import path from "node:path";
-import { Rcon, resolveConfig } from "./rcon.mjs";
+import { fileURLToPath } from "node:url";
+import { Rcon, resolveConfig, failureOf } from "./rcon.mjs";
+
+const COMPILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "compile_shots.mjs").replace(/\\/g, "/");
+// Command yang boleh "gagal" tanpa menghentikan shot (tidak ada yang dibersihkan / chunk sudah dimuat).
+const SOFT = [/^kill @e\[tag=mcs_actor\]/, /^player \S+ kill$/, /^forceload /];
+const isSoft = (cmd) => SOFT.some((re) => re.test(cmd));
+
+/** Override command freeze dari .rcon.json: { "tick_freeze": "tick freeze on", "tick_unfreeze": "tick freeze off" }.
+ *  Carpet 1.20.1: `tick freeze` = TOGGLE dan `tick unfreeze` belum tentu ada — cek di server lalu isi dua key ini. */
+function freezeCfg() {
+  try {
+    const c = JSON.parse(fs.readFileSync(path.resolve(".rcon.json"), "utf8"));
+    return { freeze: c.tick_freeze ?? "tick freeze", unfreeze: c.tick_unfreeze ?? "tick unfreeze" };
+  } catch { return { freeze: "tick freeze", unfreeze: "tick unfreeze" }; }
+}
 
 const SECTIONS = ["pre", "build", "actors", "load", "take", "post"];
 const GROUPS = { prep: ["pre", "build", "actors", "load"], scarpet: ["load", "take"] }; // "scarpet" = alias lama
@@ -18,9 +33,10 @@ const HELP = `shot.mjs — jalankan satu shot hasil compile
   node shot.mjs <shots/<shot>.json> [--dry] [--run] [--only prep|take|post|pre,build,actors,load,take,post]
 
 Section:
-  pre      gamerule determinisme, time, weather, tick freeze
+  pre      forceload chunk set, gamerule determinisme, time, weather, tick freeze
   build    isi build file (.mcfunction) / paste schem + delta & light commands
-  actors   summon / fake player di posisi hasil compile (CustomName = id aktor)
+  actors   bersihkan aktor + fake player lama, lalu summon / fake player di posisi hasil compile
+           (CustomName = id aktor; mob default NoAI+Silent+Invulnerable, kecuali actor "ai": true)
   load     script load <app> (di prep, supaya tidak makan waktu take)
   take     tick unfreeze → script in <app> run <fn>(...)
   post     command sesudah take
@@ -31,7 +47,7 @@ Opsi:
   --run        kirim ke server via RCON
   --only a,b   batasi section
   --no-log     jangan tulis commands.txt
-  --continue   lanjut walau ada command gagal
+  --continue   lanjut walau ada command gagal (balasan error dari server dihitung gagal)
   --raw        izinkan file yang bukan hasil compile_shots.mjs (tidak disarankan)
 `;
 
@@ -71,6 +87,7 @@ function actorNbt(a) {
     ...(a.id ? [`CustomName:'"${String(a.id).replace(/'/g, "")}"'`] : []),
     `Rotation:[${num(a.yaw ?? 0)}f,${num(a.pitch ?? 0)}f]`,
     "PersistenceRequired:1b",
+    ...(a.ai ? [] : ["NoAI:1b", "Silent:1b", "Invulnerable:1b"]), // tanpa ini mob jalan pergi begitu dunia di-unfreeze
     'Tags:["mcs_actor"]',
   ];
   let extra = String(a.nbt ?? "").trim();
@@ -80,8 +97,9 @@ function actorNbt(a) {
 
 function buildCommands(shot, projectDir, warn) {
   const out = [];
+  const fz = freezeCfg();
 
-  for (const c of shot.pre ?? []) out.push({ section: "pre", cmd: c });
+  for (const c of shot.pre ?? []) out.push({ section: "pre", cmd: c === "tick freeze" ? fz.freeze : c });
 
   // ---- build ----
   const build = shot.build ?? {};
@@ -110,7 +128,10 @@ function buildCommands(shot, projectDir, warn) {
   for (const c of build.commands ?? []) out.push({ section: "build", cmd: c });
 
   // ---- actors ----
-  out.push({ section: "actors", cmd: "kill @e[tag=mcs_actor]" }); // bersihkan aktor take sebelumnya
+  out.push({ section: "actors", cmd: "kill @e[tag=mcs_actor]" }); // bersihkan aktor + kerumunan take sebelumnya
+  // fake player tidak kena kill di atas: keluarkan semua fake player project (dari shot mana pun) sebelum spawn
+  const fakes = new Set([...(shot.fakes_all ?? []), ...(shot.actors ?? []).filter((a) => a.fake).map((a) => a.fake)]);
+  for (const f of fakes) out.push({ section: "actors", cmd: `player ${f} kill` });
   for (const a of shot.actors ?? []) {
     if (a.fake) {
       out.push({
@@ -130,7 +151,7 @@ function buildCommands(shot, projectDir, warn) {
     return { app: s.app, fn, args: (s.args ?? []).map(scarpetArg).join(", ") };
   });
   for (const app of new Set(calls.map((c) => c.app))) out.push({ section: "load", cmd: `script load ${app}` });
-  out.push({ section: "take", cmd: "tick unfreeze" });
+  out.push({ section: "take", cmd: fz.unfreeze });
   for (const c of calls) out.push({ section: "take", cmd: `script in ${c.app} run ${c.fn}(${c.args})` });
 
   for (const c of shot.post ?? []) out.push({ section: "post", cmd: c });
@@ -146,9 +167,12 @@ function cameraNotes(shot) {
   for (const k of cam.keys ?? []) {
     lines.push(
       `#   key f${k.f} (t=${num((k.f ?? 0) / fps)}s) pos ${vec(k.pos)} look ${vec(k.look)}` +
+        (k.yaw != null ? ` yaw ${num(k.yaw)} pitch ${num(k.pitch ?? 0)}` : "") +
         (k.fov ? ` fov ${num(k.fov)}` : "")
     );
   }
+  const k0 = (cam.keys ?? [])[0];
+  if (k0?.pos && k0.yaw != null) lines.push(`#   inspeksi framing (ketik di chat client): /tp @s ${vec(k0.pos)} ${num(k0.yaw)} ${num(k0.pitch ?? 0)}`);
   return lines;
 }
 
@@ -171,7 +195,7 @@ async function main() {
   if (!shot.compiled && !args.raw) {
     console.error(
       `${path.basename(shotPath)} bukan hasil compile. Jalankan dulu:\n` +
-        `  node ~/.claude/skills/minecraft-story/scripts/compile_shots.mjs ${path.relative(process.cwd(), projectDir) || "."}\n` +
+        `  node ${COMPILE} ${path.relative(process.cwd(), projectDir) || "."}\n` +
         `(atau --raw kalau memang sengaja)`
     );
     process.exit(1);
@@ -217,6 +241,9 @@ async function main() {
     for (const x of list) {
       try {
         const res = await rcon.send(x.cmd);
+        const bad = failureOf(res);
+        if (bad && isSoft(x.cmd)) { console.log(`--  [${x.section}] ${x.cmd} -> ${bad} (diabaikan)`); continue; }
+        if (bad) throw new Error(`server menolak: ${bad}`);
         console.log(`ok  [${x.section}] ${x.cmd}${res ? ` -> ${res}` : ""}`);
       } catch (err) {
         failed++;
@@ -227,7 +254,10 @@ async function main() {
   } finally {
     rcon.close();
   }
-  if (failed) process.exitCode = 1;
+  if (failed) {
+    console.error(`\n${failed} command GAGAL — shot ini belum siap. Perbaiki penyebabnya lalu ulangi section yang sama.`);
+    process.exitCode = 1;
+  }
 }
 
 main().catch((e) => {

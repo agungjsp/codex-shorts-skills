@@ -72,10 +72,11 @@ change `scripts/captions.py` logic.
 - `--no-pop`
 - `--lower`: keep case
 - `--strip-punct`
+- `--key-color FFD21F`: the script's KEY WORDS (CAPS in words.json) in yellow, the rest white (mc-cobblegen 2026-11-24, user choice)
 - `--alpha`: ProRes 4444
 - `--keep "the snail hole"` (repeatable): never split this phrase across captions; a 4-word caption is allowed only for it and must still fit `--max-width`. Read the full caption list after every full render and fix names or phrases that got split. If a breath of just over 0.30 s splits a phrase, raise `--gap` to 0.35.
 
 ## AE notes for the user
 - **Green clip:** use Keylight with Screen Colour = pure green. It is yuv444 crf 8, so edges stay clean.
-- **Alpha .mov:** needs no key at all (drop it on top).
+- **Alpha .mov:** needs no key at all (drop it on top). With `--key-color` prefer it: a green despill (Keylight too) pushes yellow toward orange; the preview then uses the alpha clip.
 - **captions.json:** lists each caption's text and in/out seconds, for rebuilding them as text layers.

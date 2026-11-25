@@ -3,7 +3,7 @@
 ## A. Durasi (WAJIB)
 - Video final = **2:15 (135 detik)**, 30 fps = 4050 frame.
 - VO 2:10–2:14 → 1–5 detik tail (musik/visual punchline/loop).
-- Target 340–370 kata (narrator fast-paced ±160–165 wpm). Selalu ukur pakai `node SKILL/scripts/word_count.mjs`, jangan tebak.
+- Target **347–368 kata** (= VO 2:10–2:14 pada narator 160–165 wpm). Angka ini berasal dari `SKILL/scripts/word_count.mjs`; selalu ukur dengan script itu, jangan tebak. Yang mengikat adalah durasi audio asli (`--audio`).
 
 ## B. Struktur default (dipakai kalau FORMULA.md belum ada; kalau ada, FORMULA.md menang)
 | % durasi | Detik | Beat |
@@ -50,7 +50,8 @@
 - Tiap set punya: nama, fungsi cerita, ukuran (x,y,z), block palette (5–8 blok), mood/lighting, sudut kamera utama.
 - `LAYOUT.json` per set:
   - `origin` = pojok bawah bbox, y = lapisan tanah terbawah; `size`; `front`.
-  - Anchor bernama `actor` / `landmark` / `cam_entry`, relatif ke origin. Anchor actor/cam = blok udara tempat kaki/kamera; tanah 1 lapis di dy 0 → aktor di dy 1.
+  - Anchor bernama `actor` / `landmark` / `cam_entry`, relatif ke origin, ditulis sebagai **koordinat blok (bilangan bulat)**. Anchor actor/cam = blok udara tempat kaki/kamera; tanah 1 lapis di dy 0 → aktor di dy 1.
+  - Compile memakai **tengah blok** (x+0.5, z+0.5; y = dasar blok). `off [0,0,0]` = berdiri tepat di tengah blok anchor.
   - **Jarak antar set ≥ 256 blok.** Pakai grid origin `[i*512, 64, 0]`.
   - bbox memuat tanah, bangunan, dan **semua posisi kamera**.
 - Aktor berdiri di udara di atas blok padat. Bunga, rumput, karpet, dan slab di titik kaki = menembus. Kamera tidak boleh di dalam blok. `compile_shots` mengecek keduanya dari file build.
@@ -69,6 +70,7 @@
 - **BACA SAJA setelah GATE 5:** `SCRIPT.md`, `CAST.md`, `SHOTLIST.md`, `LAYOUT.json`, `shots/*/base.json`, `assets/skins/`. Mengubahnya berarti membuka lagi GATE 5.
 - `shots/<shot>.json` adalah hasil `compile_shots.mjs`, jangan diedit tangan. Perbaiki lapisannya lalu compile ulang.
 - Orchestrator tidak menulis lapisan agent. Kalau agent gagal, panggil ulang (model opus kalau sonnet gagal).
+- **Kunci hanya aktif kalau agent terpasang benar.** Hook dengan path salah keluar dengan kode 1, dan Claude Code hanya memblokir pada kode 2. Jalankan `node SKILL/scripts/doctor.mjs` sebelum wave; harus 0 FAIL.
 
 ## H. Pipeline code-driven (berlaku untuk P1/P2)
 - **Satu shot = empat lapisan** (`shots/<shot>/{base,world,visual,camera}.json`) → compile → `shots/<shot>.json`. Shot yang belum lolos compile belum siap produksi.
@@ -80,9 +82,13 @@
 - Satu shot satu take final. Take gagal tetap disimpan (`take02.mcpr`).
 - Shader, time of day, dan weather tidak boleh berubah antar shot dalam satu scene.
 - Command yang dijalankan harus tercatat di `captures/<shot>/commands.txt` (hasil `--dry`).
-- Scarpet hanya dipanggil dengan `script in <app> run <fn>(<args>)`, string memakai kutip tunggal, dan semua argumen diisi. Take selalu lewat section `take` (`tick unfreeze` lebih dulu).
+- Scarpet hanya dipanggil dengan `script in <app> run <fn>(<args>)`, string memakai kutip tunggal, dan semua argumen diisi. Take selalu lewat section `take` (unfreeze lebih dulu).
+- Trigonometri scarpet (`sin`, `cos`, `atan2`) memakai **derajat**. Mob yang di-spawn app diberi tag `mcs_actor` supaya ikut dibersihkan saat prep.
+- Mob aktor default `NoAI` (diam di tanda). Aktor yang harus memakai AI asli: `"ai": true` di visual.json.
+- Balasan error dari server dihitung gagal oleh `shot.mjs`/`rcon.mjs`. Shot dengan command gagal belum siap direkam.
 
 ## I. Kamera
+- Satu `fov` per shot (camera path ReplayMod tidak meng-keyframe FOV; compile memberi WARN kalau fov berubah). Zoom lewat posisi kamera.
 - Frame 9:16 sempit: lebar = tinggi × 0.5625. Jarak kamera dihitung dari ukuran shot: `d = H / (2·tan(fov/2))` (tabel di agent camera-director). Jangan menebak.
 - Subject di area aman Shorts: x 4–84 %, y 8–75 % (dicek compile di t 0 / 0.5 / 1). Eye level kecuali cerita butuh lain.
 - Pakai kosakata baku di `PIPELINE.md` §7 (`push-in`, `pull-back`, `orbit`, `crane-up`, `top-down`, `whip-pan`, `parallax`, `handheld`) + shot size.

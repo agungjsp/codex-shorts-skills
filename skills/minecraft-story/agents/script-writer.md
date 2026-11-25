@@ -32,7 +32,7 @@ Mode SCRIPT (konsep terpilih):
 - English native American, kalimat pendek, KEY WORDS CAPS (maks 1–2/kalimat).
 - Tiap beat harus bisa divisualkan (sebutkan aksi/tempat secara implisit).
 - Sertakan TRANSLATION (ID) dan 3 TITLES (SEO: kata kunci "minecraft", "in this world/town", topik cerita; ≤ 60 karakter).
-- Jalankan `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md`. Wajib 340–370 kata & estimasi 2:12–2:15. Revisi sendiri sampai lolos.
+- Jalankan `node SKILL/scripts/word_count.mjs projects/<slug>/SCRIPT.md`. Wajib 347–368 kata (target VO 2:10–2:14; script mencetak estimasi di 160 dan 165 wpm). Revisi sendiri sampai lolos.
 
 Mode REVISI: terima catatan dari originality-checker, ubah HANYA bagian yang di-flag, jaga durasi.
 Balas: logline + jumlah kata + estimasi durasi.

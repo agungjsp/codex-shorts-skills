@@ -39,9 +39,9 @@ Butuh `cam_entry` baru, atau bbox yang lebih besar supaya kamera muat? Tulis REQ
 }
 ```
 - `t` 0..1 sepanjang shot (key pertama 0, terakhir 1, naik). Compile mengubahnya ke frame dari timing VO, jadi kamu tidak perlu tahu durasi.
-- `pos` / `look`: `{ "anchor": nama, "off": [dx,dy,dz] }` atau `{ "actor": id, "off": [...] }` (actor = titik mata, y +1.62).
+- `pos` / `look`: `{ "anchor": nama, "off": [dx,dy,dz] }` atau `{ "actor": id, "off": [...] }` (actor = titik mata, y +1.62). Anchor = tengah blok (x, z), dasar blok (y).
 - `move` (PIPELINE §7): `static` | `push-in` | `pull-back` | `orbit` | `crane-up` | `top-down` | `whip-pan` | `parallax` | `handheld`.
-- `fov` = FOV vertikal Minecraft (default 70). Close-up pakai 30–50 supaya kamera tidak harus masuk ke dalam blok.
+- `fov` = FOV vertikal Minecraft (default 70). Close-up pakai 30–50 supaya kamera tidak harus masuk ke dalam blok. **Satu nilai fov untuk semua key dalam satu shot** (ReplayMod tidak meng-keyframe FOV; compile memberi WARN). Push-in / pull-back = ubah `pos`, bukan fov.
 
 ## Framing 9:16 (compile mengecek ini)
 Frame vertikal sempit: lebar = tinggi × 0.5625. Jarak kamera → subject: `d = H / (2·tan(fov/2))`.
