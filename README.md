@@ -1,5 +1,7 @@
 # Claude Shorts Skills
 
+**English** · [Bahasa Indonesia](README.id.md)
+
 [![check](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml/badge.svg)](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/fahniazz/claude-shorts-skills?style=social)](https://github.com/fahniazz/claude-shorts-skills/stargazers)
 
 Four [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, Minecraft short scripts, and code-driven Minecraft story videos. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
@@ -35,12 +37,14 @@ Every frame is rendered on a home PC with three.js inside Remotion; no AI video 
 
 ## Install
 
+Step-by-step guide for beginners (Windows): [README.id.md](README.id.md) (Indonesian).
+
 1. Clone this repo.
 2. Copy the skills you want into `~/.claude/skills/`:
    ```bash
    cp -r skills/* ~/.claude/skills/
    ```
-   For `minecraft-story`, also copy its sub-agents: `cp skills/minecraft-story/agents/*.md ~/.claude/agents/` and start a new Claude Code session.
+   For `minecraft-story`, also install its sub-agents with `node ~/.claude/skills/minecraft-story/scripts/install.mjs` and start a new Claude Code session.
 3. Install the tools the video skills use: Node 20+, [Remotion](https://www.remotion.dev/) with `@remotion/three`, Python 3 and ffmpeg.
 4. In Claude Code, ask for example: *"Use the cartoon short skill and make a short about the first elevator brake."*
 
