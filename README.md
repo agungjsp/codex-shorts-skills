@@ -7,13 +7,22 @@ Four [Claude Code](https://claude.com/claude-code) skills for making vertical sh
 ## Made with these skills
 
 <p align="center">
-  <img src="docs/demo/cut-the-rope.gif" width="190" alt="Cut the Rope">
-  <img src="docs/demo/invented-electricity.gif" width="190" alt="How You Invented Electricity">
-  <img src="docs/demo/saved-by-the-stink.gif" width="190" alt="Saved by the Stink">
-  <img src="docs/demo/invented-lighthouse.gif" width="190" alt="How You Invented the Lighthouse">
+  <a href="https://www.youtube.com/shorts/SyGejh7OGvc"><img src="docs/demo/cut-the-rope.gif" width="190" alt="Cut the Rope"></a>
+  <a href="https://www.youtube.com/shorts/-dr5RuXq-is"><img src="docs/demo/invented-electricity.gif" width="190" alt="How You Invented Electricity"></a>
+  <a href="https://www.youtube.com/shorts/JcwlOpPGPBg"><img src="docs/demo/saved-by-the-stink.gif" width="190" alt="Saved by the Stink"></a>
+  <a href="https://www.youtube.com/shorts/D0rqckAfzV8"><img src="docs/demo/invented-lighthouse.gif" width="190" alt="How You Invented the Lighthouse"></a>
 </p>
-<p align="center"><i>Cut the Rope · How You Invented Electricity · Saved by the Stink · How You Invented the Lighthouse</i></p>
+<p align="center"><i>Click a clip to watch the full short on YouTube.</i></p>
+
 Every frame is rendered on a home PC with three.js inside Remotion; no AI video generator, no stock footage.
+
+### More videos made with these skills
+
+| Channel | Videos |
+|---|---|
+| [UntoldAnimation](https://www.youtube.com/@UntoldAnimationYT) (English, `cartoon-3d-short`) | [Why Perfect Escape Tunnels Collapse](https://www.youtube.com/shorts/WZYyPAWdEp4) · [The Ships That Climbed a Hill](https://www.youtube.com/shorts/Gdv81sMPrAI) · [The Plumber Who Held the Door for the Mona Lisa Thief](https://www.youtube.com/shorts/pZ3_YFUlHmw) · [Stopped by Thin Air](https://www.youtube.com/shorts/dZ-4eEUPRvQ) · [The Thief Who Died On Time](https://www.youtube.com/shorts/RD29XwYLITE) · [The Thief Who Cried Wolf](https://www.youtube.com/shorts/xkngcssRhjw) |
+| [RubyBlocked](https://www.youtube.com/@RubyBlocked) (English, Minecraft) | [In This Town, Forgotten Blocks Vanish](https://www.youtube.com/shorts/eRC9rXeqTPQ) (`minecraft-story`) · [How You Invented the Cobblestone Generator](https://www.youtube.com/shorts/pE9Wfs5ZrcA) · [How You Invented the Mob Farm](https://www.youtube.com/shorts/CXSxaww4vPU) |
+| [iFanz](https://www.youtube.com/@iFanzYT) (Indonesian, Minecraft) | [Upgrade Rumah Minecraft Sampai Kebablasan](https://www.youtube.com/shorts/ZavYvrUcA8Q) · [Bagaimana Kamu Menemukan Mob Farm di Minecraft](https://www.youtube.com/shorts/8Be9LLauxv8) |
 
 ## The skills
 
