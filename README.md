@@ -1,5 +1,7 @@
 # Claude Shorts Skills
 
+[![check](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml/badge.svg)](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/fahniazz/claude-shorts-skills?style=social)](https://github.com/fahniazz/claude-shorts-skills/stargazers)
+
 Four [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, Minecraft short scripts, and code-driven Minecraft story videos. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
 
 ## Made with these skills
@@ -47,6 +49,10 @@ Every frame is rendered on a home PC with three.js inside Remotion; no AI video 
 - Story, characters and voice are your own. References are for measuring the look, never for copying content.
 - Sound effects are recorded (CC0 / free-licence), not synthesised.
 - Characters and captions stay inside the YouTube Shorts safe zone.
+
+## Contributing
+
+Pull requests are welcome. Start with a [`good first issue`](https://github.com/fahniazz/claude-shorts-skills/labels/good%20first%20issue) and read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Credits
 
