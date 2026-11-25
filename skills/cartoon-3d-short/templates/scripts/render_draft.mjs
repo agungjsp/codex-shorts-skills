@@ -12,7 +12,9 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const [comp, out, mix] = args;
 const range = opt("--range", null)?.split("-").map(Number) ?? null;
-const browserExecutable = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+// Chrome to render with: CHROME_PATH if set, else the usual Windows install, else null (Remotion uses its own browser)
+const WIN_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const browserExecutable = process.env.CHROME_PATH || ((await import("node:fs")).existsSync(WIN_CHROME) ? WIN_CHROME : null);
 const chromiumOptions = { gl: "angle" };
 const serveUrl = await bundle({ entryPoint: path.resolve(process.env.BRIDGE_ENTRY || "src/index.ts"), publicDir: path.resolve("public") });
 const composition = await selectComposition({ serveUrl, id: comp, browserExecutable, chromiumOptions });

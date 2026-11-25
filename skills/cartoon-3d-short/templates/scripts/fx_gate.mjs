@@ -42,7 +42,9 @@ for (const p of PKGS) {
 if (!ok) { report(); process.exit(1); } // STOP: fix duplicates before anything else
 
 // ---- 2 + 3. A/B renders and FX logs ----
-const browserExecutable = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+// Chrome to render with: CHROME_PATH if set, else the usual Windows install, else null (Remotion uses its own browser)
+const WIN_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const browserExecutable = process.env.CHROME_PATH || ((await import("node:fs")).existsSync(WIN_CHROME) ? WIN_CHROME : null);
 const chromiumOptions = { gl: "angle" };
 const serveUrl = await bundle({ entryPoint: path.resolve(process.env.BRIDGE_ENTRY || "src/index.ts"), publicDir: path.resolve("public") });
 const still = async (frame, post, file) => {

@@ -48,11 +48,40 @@ Step-by-step guide for beginners (Windows): [README.id.md](README.id.md) (Indone
 3. Install the tools the video skills use: Node 20+, [Remotion](https://www.remotion.dev/) with `@remotion/three`, Python 3 and ffmpeg.
 4. In Claude Code, ask for example: *"Use the cartoon short skill and make a short about the first elevator brake."*
 
+### macOS
+
+> The skills were built and tested on Windows 11. The steps below should work on macOS, but have not been tested there yet: if something breaks, please report it in [issue #5](https://github.com/fahniazz/claude-shorts-skills/issues/5).
+
+In Terminal:
+
+```bash
+# 1. Homebrew (skip if you have it), then the base tools
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install git node python ffmpeg
+
+# 2. Claude Code (run `claude` once and log in)
+npm install -g @anthropic-ai/claude-code
+
+# 3. + 4. Get the skills and copy them into Claude's folder
+git clone https://github.com/fahniazz/claude-shorts-skills
+mkdir -p ~/.claude/skills && cp -r claude-shorts-skills/skills/* ~/.claude/skills/
+node ~/.claude/skills/minecraft-story/scripts/install.mjs   # only for minecraft-story
+
+# 5. A Remotion project to render in
+npx create-video@latest
+cd my-video
+npm install @remotion/three three @react-three/fiber
+claude
+```
+
+Rendering uses Remotion's own browser unless you set `CHROME_PATH`, and the caption script picks Arial Black (or DejaVu Sans Bold on Linux) by itself; pass `--font` to use another font.
+
 ## Settings
 
 | Variable | Used for |
 |---|---|
 | `REMOTION_TMP` | Temp folder for Remotion bundles; put it on a big drive (defaults to the system temp folder). |
+| `CHROME_PATH` | Optional Chrome/Chromium for rendering. If unset, the scripts use Chrome's usual Windows install when it exists, otherwise Remotion's own downloaded browser. |
 | `ELEVENLABS_API_KEY` | Optional AI voice (`templates/scripts/eleven_voice.py`). Put it in your project's `.env`; never commit it. |
 | `HF_CACHE_DIR` | Optional cache folder for the faster-whisper model used for word timings. |
 | `<ASSETS_DIR>` | In the docs, the folder where you keep your own asset kits (for example [Kenney](https://kenney.nl/) CC0 models). |

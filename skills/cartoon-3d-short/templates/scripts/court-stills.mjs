@@ -6,7 +6,9 @@ import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 const [out = "out/court/round1", scale = "0.5", frames = "9,62,82,105", props = "{}"] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
-const browserExecutable = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+// Chrome to render with: CHROME_PATH if set, else the usual Windows install, else null (Remotion uses its own browser)
+const WIN_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
+const browserExecutable = process.env.CHROME_PATH || ((await import("node:fs")).existsSync(WIN_CHROME) ? WIN_CHROME : null);
 const chromiumOptions = { gl: "angle" };
 const inputProps = JSON.parse(props);
 const serveUrl = await bundle({ entryPoint: path.resolve("src/sandboxes/court/index.tsx"), publicDir: path.resolve("public") });

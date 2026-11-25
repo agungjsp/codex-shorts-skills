@@ -20,7 +20,19 @@ ap.add_argument("words"); ap.add_argument("out")
 ap.add_argument("--start", type=float, default=0.0, help="seconds into the film")
 ap.add_argument("--dur", type=float, default=None, help="seconds to render (default: to the last word + 1 s)")
 ap.add_argument("--w", type=int, default=1440); ap.add_argument("--h", type=int, default=2560); ap.add_argument("--fps", type=int, default=30)
-ap.add_argument("--font", default="C:/Windows/Fonts/ariblk.ttf")
+# a heavy sans that exists on this OS (Windows, macOS, Linux); --font overrides
+FONT_CANDIDATES = [
+    "C:/Windows/Fonts/ariblk.ttf",                                   # Windows: Arial Black
+    "/System/Library/Fonts/Supplemental/Arial Black.ttf",            # macOS
+    "/Library/Fonts/Arial Black.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/Arial_Black.ttf",       # Linux (ttf-mscorefonts)
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",          # Linux (most distros)
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf",
+]
+ap.add_argument("--font", default=next((f for f in FONT_CANDIDATES if os.path.exists(f)), None),
+                help="TTF/OTF font file (default: the first heavy sans found on this OS)")
 ap.add_argument("--size", type=float, default=0.032, help="font size as a fraction of the frame height")
 ap.add_argument("--y", type=float, default=0.715, help="caption centre (capitals middle) as a fraction of the frame height")
 ap.add_argument("--max-words", type=int, default=3)
@@ -34,6 +46,8 @@ ap.add_argument("--no-pop", action="store_true");ap.add_argument("--lower", acti
 ap.add_argument("--preview", default=None, help="film mp4 to key the captions over for a check")
 ap.add_argument("--alpha", action="store_true")
 a = ap.parse_args()
+if not a.font or not os.path.exists(a.font):
+    sys.exit(f"captions.py: no font found ({a.font!r}). Pass one with --font /path/to/font.ttf")
 
 GREEN = (0, 255, 0)
 W, H, FPS = a.w, a.h, a.fps

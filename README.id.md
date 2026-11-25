@@ -21,7 +21,7 @@ Bukan AI video generator: gambarnya di-*render* dengan three.js di dalam [Remoti
 
 ## Cara pasang (langkah demi langkah)
 
-Semua perintah di bawah diketik di **PowerShell** (Windows: tekan Start, ketik `PowerShell`, Enter). Pengguna macOS/Linux: pakai Terminal dan versi perintah `bash`.
+Semua perintah di bawah diketik di **PowerShell** (Windows: tekan Start, ketik `PowerShell`, Enter). Pengguna Mac: lihat [Cara pasang di macOS](#cara-pasang-di-macos).
 
 ### 1. Pasang alat dasarnya
 
@@ -88,6 +88,49 @@ claude
 Ketik `/` untuk melihat daftar skill (misalnya `/cartoon-3d-short`), atau langsung minta:
 
 > *"Pakai skill cartoon short, bikin short tentang orang pertama yang menemukan rem lift."*
+
+## Cara pasang di macOS
+
+> Skill ini dibuat dan dites di Windows 11. Langkah di bawah seharusnya jalan di macOS, tapi **belum pernah dites** di Mac. Kalau ada yang error, tolong laporkan di [issue #5](https://github.com/fahniazz/claude-shorts-skills/issues/5) 🙏
+
+Buka **Terminal** (tekan `Cmd + Spasi`, ketik `Terminal`, Enter), lalu jalankan:
+
+**1. Pasang Homebrew dan alat dasarnya** (lewati baris pertama kalau Homebrew sudah ada)
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install git node python ffmpeg
+```
+
+**2. Pasang Claude Code**, lalu jalankan `claude` sekali dan login
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**3. Ambil repo ini dan salin skill ke folder Claude**
+
+```bash
+git clone https://github.com/fahniazz/claude-shorts-skills
+mkdir -p ~/.claude/skills && cp -r claude-shorts-skills/skills/* ~/.claude/skills/
+```
+
+Kalau memakai `minecraft-story`:
+
+```bash
+node ~/.claude/skills/minecraft-story/scripts/install.mjs
+```
+
+**4. Siapkan project Remotion, lalu pakai**
+
+```bash
+npx create-video@latest
+cd nama-project-kamu
+npm install @remotion/three three @react-three/fiber
+claude
+```
+
+Di Mac, render memakai browser bawaan Remotion (otomatis diunduh), kecuali kamu mengisi `CHROME_PATH`. Script caption otomatis memakai font Arial Black yang ada di Mac; pakai `--font` kalau mau font lain.
 
 ## Kalau ada masalah
 
