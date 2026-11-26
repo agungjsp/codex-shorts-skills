@@ -1,0 +1,7 @@
+name = "packager-qa"
+description = "Review an assembled Minecraft Story short and prepare its publishing notes, subtitles, and QA report."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/packager-qa.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Read the coordinator's .wave/assemble.json report. Do not run assemble.mjs --check because it writes that report.
+Return PUBLISH.md, captions.srt, QA.md, and any assigned request as a JSON proposal. Report missing inputs or checks. Do not edit, render, upload, or publish anything.
+"""

@@ -14,17 +14,17 @@ Proven on **The Bridge That Fell for a Song**, a 67 s short about the 1831 Broug
 | `references/` | Workflow, rendering, audio, QA, director, lessons |
 | `presets/` | Motion presets and the review rubric (pass = 8.5) |
 | `templates/` | rail (default), bridge, palace, court, diorama, audio, scripts |
-| `templates/audio/` | Music, the mix with ducking and loudness (SFX are recorded, never synthesized) |
+| `templates/audio/` | Historical bridge audio tooling. Use recorded SFX for new shorts. |
 | `templates/scripts/` | Stills, side-by-side sheets, shot merge and frame-by-frame QA helpers |
 | `bible/style.md` | The script and visual formula measured from 20 reference shorts |
 | `references/reports/` | Seven measured reports: motion, depth, textures, characters, lighting, outlines, grade |
 
 ## Install
 1. Copy this folder to `~/.claude/skills/cartoon-3d-short/` (clone it there, or download the ZIP).
-2. You need [Remotion](https://www.remotion.dev/) with `@remotion/three`, plus Node, Python 3 and ffmpeg.
+2. Use a [compatible Remotion host](../../docs/remotion-host.md) with the original director. Follow the [runtime setup](../../docs/codex.md#runtime-setup) for the media tools. A blank Remotion starter cannot run the director gate.
 3. In Claude Code, say: *"Use the cartoon short skill and make a short about …"*.
 
-Claude then follows `SKILL.md` and `references/WORKFLOW.md`: topic and facts, then script, then voice, then the shot plan in `story.ts`, then stills, then renders. Agents check your frames against the reports and the frames, and you get the final 2K render and sound mix.
+Follow `SKILL.md` and `references/WORKFLOW.md` for script, voice, storyboarding and rendering. Run the director, review, and FX gates before delivery.
 
 ## Notes
 - Set `REMOTION_TMP` to a folder on a big drive. Every Remotion bundle copies `public/` (~1.3 GB) into the temp folder.

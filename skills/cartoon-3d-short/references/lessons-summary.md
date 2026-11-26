@@ -9,14 +9,14 @@ one-line commands that cost a whole render.
 - **Check `node_modules/@react-three/postprocessing/node_modules/postprocessing` does NOT exist.**
   A nested second copy makes the composer silently drop every custom Effect/Pass (ink, lens, bloom,
   tone, grade) — `instanceof` fails, no error. Test: a shader that outputs pure red must keep the still red.
-- Run `npm ls postprocessing three @react-three/postprocessing` before any render.
+- Install from the [Remotion host lockfile](../../../docs/remotion-host.md#install-from-the-host-lockfile). Run `npm ls --all --parseable three postprocessing @react-three/postprocessing` before any render. Require one installed copy of each package.
 
 ## Paths and environment
 - Keep the project on a short path (`E:\animated-shorts`). Past Windows' 260-char limit,
   `chrome-headless-shell` fails to launch (ENOENT).
-- Render with `export TEMP='<big drive>/remotion-tmp' TMP='<big drive>/remotion-tmp'`.
-  Every Remotion bundle copies `public/` (~1.3 GB) into `remotion-webpack-bundle-*` and never deletes it.
-  In JS strings write the path with a forward slash (`\r` becomes a carriage return).
+- Before running any render helper, follow the [temporary directory setup](RENDERING.md#disk-management). Set `REMOTION_TMP` and the OS temp variables. On macOS and Linux, Node reads `TMPDIR` first.
+- Remotion copies `public/` into `remotion-webpack-bundle-*`. The Bridge assets took about 1.3 GB per bundle.
+- Use forward slashes in JavaScript paths (`\r` is a carriage return).
 
 ## Final render (the two that ate a whole short)
 - **Never use plain `npx remotion render` for the final.** It produced a 2K file with no ink, no lens blur
@@ -29,6 +29,7 @@ one-line commands that cost a whole render.
 
 ## Audio
 - Run audio scripts with plain `python`, not `python -I` — they cannot import `dsp.py`.
+- The synthesized SFX in `templates/audio/` are historical examples for timing and level. Use approved recordings for production sound effects. Procedural music is allowed.
 - faster-whisper "small", language set, `vad_filter=True`, **no `initial_prompt`** (it skipped the first 27 s).
   Then align to the script with difflib.
 - Make a provisional `words.json` at ~3.7 words/s until the voice exists; re-check camera speeds after the real one lands.
@@ -55,7 +56,7 @@ one-line commands that cost a whole render.
 - A huge additive glow card (12 m) strobes when the lens flies past it: fade by lens distance.
   Ease post effects out over 15-20 f, never 4 f.
 
-- Big worlds: render_draft/render_final `--concurrency 3/2` (else D3D 0x8007000e); frame_check output is on stderr.
+- Big worlds: use `--concurrency 3` for `render_draft.mjs` or `--concurrency 2` for `render_final.mjs` to avoid GPU memory errors such as D3D 0x8007000e. Read the frame-check report, not only the exit code.
 - "Slower than" = both in one frame on the word; crowds walk in on the word that names them, never stand in the way.
 
 ## Process

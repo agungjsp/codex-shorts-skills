@@ -1,6 +1,6 @@
 # scripts/mc — helper pipeline
 
-Tanpa dependency Node (≥ 18). Panggil dengan path absolut, jalankan dari root project (`.rcon.json` dibaca dari cwd).
+Tanpa dependency Node (≥ 18; CI memakai Node.js 20). Panggil script dengan path absolut. `.rcon.json` dibaca dari direktori kerja. Contoh di bawah memakai root checkout.
 `SKILL` = `~/.claude/skills/minecraft-story`.
 
 | File | Fungsi |
@@ -14,8 +14,10 @@ Tanpa dependency Node (≥ 18). Panggil dengan path absolut, jalankan dari root 
 
 ## Setup sekali per project
 
+Ikuti [setup ARM64 dan catatan versi per produksi](../../TOOLS.md#8-urutan-install-minimum). Setup dan cek game dilakukan oleh orchestrator di luar wave. Selama wave, jangan akses server atau kirim command.
+
 1. Copy app yang dipakai ke server: `<server>/config/carpet/scripts/`.
-2. Isi `.rcon.json` di root project:
+2. Isi `.rcon.json` di direktori kerja (root checkout untuk contoh ini). Simpan password secara lokal; jangan masukkan ke `MODLIST.txt`.
    ```json
    { "host": "127.0.0.1", "port": 25575, "password": "ganti-ini",
      "tick_freeze": "tick freeze on", "tick_unfreeze": "tick freeze off" }
@@ -23,7 +25,7 @@ Tanpa dependency Node (≥ 18). Panggil dengan path absolut, jalankan dari root 
    `tick_freeze` / `tick_unfreeze` = command yang dipakai `shot.mjs` (default `tick freeze` / `tick unfreeze`). Di Carpet 1.20.1 `tick freeze` polos adalah toggle, jadi isi dengan bentuk eksplisit yang berfungsi di servermu (`/tick freeze status` untuk mengecek).
 3. Tes: `node SKILL/scripts/mc/rcon.mjs --check` → harus balas daftar player.
 
-## Urutan satu shot
+## Urutan satu shot in-game (P1/P2, setelah Gate 7)
 
 ```powershell
 node ~/.claude/skills/minecraft-story/scripts/compile_shots.mjs projects/<slug>
@@ -35,6 +37,8 @@ node ~/.claude/skills/minecraft-story/scripts/mc/shot.mjs projects/<slug>/shots/
 ```
 
 `prep` = `pre,build,actors,load`. `pre` dibuka dengan `forceload add` (chunk set). `take` = unfreeze lalu semua panggilan scarpet. Tanpa unfreeze, mob dan `__on_tick` diam.
+
+Untuk `build.mode: "schem"`, `shot.mjs` hanya mengirim command WorldEdit; ia tidak memindahkan file. Ikuti [staging di server, aturan origin, dan cek fisik](../../PIPELINE.md#4c-staging-schematic-dan-cek-fisik) sebelum take. Jika paste ditolak atau set tidak cocok, hentikan prep. Shot Blender atau Mine-imator mengikuti [serah terima P1–P4](../../PIPELINE.md#4b-serah-terima-ke-operator-p1p4), bukan urutan command ini.
 
 ## Satu-satunya cara memanggil scarpet
 
@@ -55,7 +59,7 @@ Tes Node (`tests/run_tests.mjs`) tidak menjalankan Minecraft. App di `scarpet/` 
 - `spawn(type, pos, '{Tags:["mcs_actor"],PersistenceRequired:1b}')`.
 Kalau salah satu ditolak versi Carpet-mu, error-nya muncul di log server dan `shot.mjs` menandai take sebagai `ERR`.
 
-**Hasil uji di game 2026-11-24** (Carpet 1.20-1.4.112, server uji lokal, lewat RCON, 14/14 lolos):
+**Bukti historis, 24 November 2026** (Carpet `1.20-1.4.112`, server uji lokal, lewat RCON, 14/14 pada cakupan saat itu):
 - `crowd.wander` 12 villager tersebar (jarak min 2.3, radius 3.2–7.9), tag `mcs_actor` + `PersistenceRequired`; `clear()` menghapus semua.
 - `crowd.march` 6 mob bergerak ke +x (4.4 blok / 2 s), yaw −90 (menghadap arah jalan).
 - `wall.ring_now` r10 h4 lip1 → 294 blok, lingkaran tanpa celah; `ring` berikutnya kembali ke 8 blok/tick.
@@ -64,6 +68,8 @@ Kalau salah satu ditolak versi Carpet-mu, error-nya muncul di log server dan `sh
 - `tick freeze on` / `tick freeze off` berfungsi; `tick unfreeze` DITOLAK server → isi `.rcon.json`.
 - **Difficulty peaceful**: mob hostile (pillager, zombie, dll.) langsung hilang setelah `spawn` — `march` tetap mengembalikan 6 tapi tidak ada yang hidup. Cerita dengan mob hostile butuh `difficulty easy` (atau lebih). → server uji diubah ke **easy** 2026-11-24 (`doMobSpawning false`, jadi tidak ada spawn liar); pillager march 6/6 hidup.
 - Belum diuji: `env.water`, `env.drain`, gerak kaki aktor NoAI di render (lihat Catatan).
+
+Catatan ini tidak menjamin setup ARM64, kombinasi versi di `MODLIST.txt`, atau render. Catat hasil cek setup produksi secara terpisah.
 
 ## Catatan
 

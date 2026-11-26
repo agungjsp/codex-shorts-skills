@@ -17,24 +17,26 @@ report it, do not loop.
   once, then the user sees it. No re-review loop unless the user asks.
 - **Full review (only when the user asks): at most 2 rounds per draft.** If round 2 still fails, STOP and report the open issues.
 
-## Script gates (no tokens, all must pass before any agent)
+## Script gates
+
+All gates must pass before any review agent. Run the commands from the [Remotion host](../../../docs/remotion-host.md). If a required runtime, fixture, or gate is missing, report the block. Do not substitute a still or a manual review for a gate.
 - **Sources first:** `sources.md` exists and every factual claim in SCRIPT.md has a row (read both, no tool); any on-screen number,
   date or name is in it too.
 0. `npm run director -- validate out/director/<slug>`: the plan still matches SCRIPT.md, words.json and the story.ts takes.
-   Rerun after any script or voice change.
-1. `frame_check.mjs`: characters cut by the frame edge.
-2. `fx_gate.mjs`: effect activity and dependency dedupe.
-3. `short_qa.py`: black, white, frozen, pop frames; loudness −14 LUFS.
-4. `beat_sheet.py`: one frame per narration phrase.
+   Rerun after any script or voice change. If the host lacks the director, stop at gate 0.
+1. `COMP=<Comp> node scripts/frame_check.mjs`: inspect the report for clipping and safe-zone issues. The script reports problems in its output. A zero exit code alone does not pass this gate. The composition must implement `frameCheck`. The [Minecraft mode](../bible/modes/minecraft.md#checking) also needs the voxel safe-zone check for mobs.
+2. `node scripts/fx_gate.mjs <Comp> out/<name>/gate --frames <a,b>`: follow the [FX gate](RENDERING.md#pre-render-qa-gate-mandatory) for the effects in use. Require both the log and pixel evidence.
+3. `python -I scripts/short_qa.py out/<name>/draft.mp4 out/<name>/qa`: inspect the black, white, frozen, and pop frame report. Make sure that the audio meets the −14 LUFS target. Provide the script's shot metadata argument when you need to mark planned transitions.
+4. `python -I scripts/beat_sheet.py out/<name>/draft.mp4 stories/<slug>/voice/words.json out/<name>/beats`: one frame per narration phrase. Use the full draft when the word timings cover the whole story.
 
 ## Agent review (parallel, once per round, from the same beat sheet)
-| Task | Model |
+| Task | Claude model |
 |------|-------|
 | Sound-off review: picture matches the line at that moment, no spoiler, nobody cut by the frame, no face covered | **Sonnet** (Haiku missed subtle spoilers) |
 | Art review (look, acting, story) and final audit | **Opus** |
 | Side-by-side verifier | **Opus, effort max**, ONLY when look scores 7-8 (skip at ≥ 9 or ≤ 6) |
 | Lightweight key-scene review | **fable** (rubric above) |
-Everything else (builders, debuggers, renders, captions): `memory/agent-models.md`.
+For Claude, use the project's `memory/agent-models.md` when it exists. In Codex, use an available fresh reviewer with the same rubric and review limits. If independent review is unavailable, report that limitation.
 
 **Sound-off test (every draft):** `python -I scripts/beat_sheet.py draft.mp4 words.json out/<name>/beats`; watch muted, then
 give the sheets and SCRIPT.md to a fresh agent. Per phrase: (1) picture shows what the line says, at that moment, not
@@ -71,7 +73,7 @@ Final scores, number of review rounds, agents used (with model), estimated token
 
 ## Look-match loop (for "make it look like X" passes)
 Prefer the lighter one-set version first (one sandbox, 6 rounds, metrics + 9 aspect scores, no agents):
-`bible/modes/pbr.md`, "Look-match loop used". Use the multi-owner loop only for a whole-template overhaul.
+[PBR mode, “Look-match loop used”](../bible/modes/pbr.md#look-match-loop-used-repeat-for-any-new-reference-look). Use the multi-owner loop only for a whole-template overhaul.
 
 1. **Measure the reference first.** One analysis agent per topic (motion, depth, textures, characters, lighting, outlines,
    grade) writes numbers, not adjectives, to `references/reports/<topic>.md` (shared brief: `references/reports/CONTEXT.md`).

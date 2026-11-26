@@ -34,7 +34,6 @@ Music +3 dB, SFX −6 dB, voice unchanged (one standard, set in SKILL.md; no per
 - Lock picture's time constants BEFORE making sound. Any later timing change = re-run sound.
 - **SFX = free recordings only** (CC0 or CC-BY; user rule 2026-11-11). Send the list first (name, source, link, license, beat); download only after the user's OK. No synthetic SFX.
 - Music: original score ducked under the voice. Sampled orchestra: `vsco-instruments` memory (`<ASSETS_DIR>/vsco2ce`, `inst_vsco.py`).
-- Generated SFX (Mirelo) only on request, listing the SFX first.
 - Voice: one steady tone.
 - Language comes from the script's preamble (`Language:`), see SKILL.md.
 - **Cue list in frames (`cues.md`):** each SFX is written next to its picture event with the same global frame
@@ -52,15 +51,12 @@ Music +3 dB, SFX −6 dB, voice unchanged (one standard, set in SKILL.md; no per
      show the user → `approve` ONLY after the user says yes → `generate` → `use`. Gives words.json directly (no whisper).
 2. Make word timings `words.json` (any STT with word times)
 3. **Hand-fix word timings** — everything is timed to words.json
-4. `words_from_voice.py` makes words.json from voice.wav + SCRIPT.md (faster-whisper, aligned to script)
+4. Run `python scripts/words_from_voice.py <voice.wav> <SCRIPT.md> <words.json> <en|id>` for recorded voice. If alignment cannot assign measured times to the script, check the raw timestamps against the audio and correct the word timings by hand.
 
 ---
 
-## Palace Template Audio (`templates/audio/`)
-- `score_intrigue.py` writes whole score, SFX, mix from voice.wav + words.json:
-  ```bash
-  python score_intrigue.py voice.wav words.json out_dir
-  ```
+## Historical palace audio template
+`templates/audio/score_intrigue.py` creates synthesized effects. Keep it as a timing reference, not a production command. For new shorts, assemble the approved recorded effects into `sfx.wav` before mixing.
 
 ---
 

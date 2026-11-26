@@ -42,16 +42,14 @@ in this niche.
 - **One antagonist for the whole ladder**: one recognisable mob with a **name tag** (in-game name tags show above its head),
   e.g. a zombie called "Gerald" who beats every version until the last.
 - Escalation: each failure is sneakier than the last; the final fix is the least obvious one.
-- House rules still win: VO flows with no pauses, each line's picture lands on its word, recorded SFX only,
-  captions as a separate green-screen clip, final file named by the title.
+- Keep narration flowing and match each line's picture to the word. If the user requests video production, use recorded SFX, deliver captions as a separate green-screen clip, and name the final file after the title.
 
-## Picture (Replay Mod)
+## Picture and recording
 - **ONE build that grows.** Build every stage in a test world and save a copy (or `/clone` the stages side by side),
   so each rung is recorded on the same spot.
-- Each rung = **failure shot + build shot**. Failure: the mob does the thing (slowed with `/tick rate`). Build: a
-  fast-forward block-placing timelapse (the what-if creator calls fast-building clips their most engaging hook footage).
+- Each rung gets a failure shot and a build shot. Record the failure at real speed to verify it. For a second, slower take, use `/tick rate` only on a Java setup that supports it. Otherwise slow the footage in the edit. Fast-forward the block-placing shot.
 - **Cutaway views** for anything hidden: spectator mode through the ground for caves, x-ray-style side cuts.
-- Camera always moving: Replay Mod paths between rungs, hard cuts only on hits/explosions. Intro cuts < 1 s.
+- Move the camera between rungs with Replay Mod on supported Java releases or with a manual camera pass. Cut on hits or explosions. Keep intro cuts under 1 s.
 - The rung name gets a clean ~1 s hero orbit of the whole build.
 - **Ending: big pull-back** to the finished build working at full speed (every past rung visible in it).
 

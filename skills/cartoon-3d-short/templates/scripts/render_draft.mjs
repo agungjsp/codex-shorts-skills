@@ -4,13 +4,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
-const TMP = process.env.REMOTION_TMP || (await import("node:os")).tmpdir();
-fs.mkdirSync(TMP, { recursive: true }); process.env.TEMP = process.env.TMP = TMP;
-const { bundle } = await import("@remotion/bundler");
-const { renderMedia, selectComposition } = await import("@remotion/renderer");
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const [comp, out, mix] = args;
+if (!comp || !out || !mix || mix.startsWith("--")) {
+  console.error("usage: node scripts/render_draft.mjs <Composition> <out.mp4> <mix.wav> [--scale 0.5] [--range a-b] [--concurrency n]");
+  process.exit(2);
+}
+if (!fs.statSync(mix, { throwIfNoEntry: false })?.isFile()) {
+  console.error(`Missing mix WAV: ${mix}`);
+  process.exit(2);
+}
+const TMP = process.env.REMOTION_TMP || (await import("node:os")).tmpdir();
+fs.mkdirSync(TMP, { recursive: true }); process.env.TMPDIR = process.env.TEMP = process.env.TMP = TMP;
+const { bundle } = await import("@remotion/bundler");
+const { renderMedia, selectComposition } = await import("@remotion/renderer");
 const range = opt("--range", null)?.split("-").map(Number) ?? null;
 // Chrome to render with: CHROME_PATH if set, else the usual Windows install, else null (Remotion uses its own browser)
 const WIN_CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";

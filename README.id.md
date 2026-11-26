@@ -1,8 +1,8 @@
-# Claude Shorts Skills (Bahasa Indonesia)
+# Shorts Skills untuk Codex dan Claude Code
 
 [English](README.md) · **Bahasa Indonesia**
 
-Empat *skill* [Claude Code](https://claude.com/claude-code) untuk bikin video pendek vertikal (YouTube Shorts, TikTok, Reels) langsung di PC sendiri:
+Empat skill untuk membuat video pendek vertikal (YouTube Shorts, TikTok, Reels). [Codex](https://developers.openai.com/codex/) mengenali skill langsung dari folder repo ini. [Claude Code](https://claude.com/claude-code) memakai skill asli.
 
 | Skill | Gunanya |
 |---|---|
@@ -13,13 +13,21 @@ Empat *skill* [Claude Code](https://claude.com/claude-code) untuk bikin video pe
 
 Bukan AI video generator: gambarnya di-*render* dengan three.js di dalam [Remotion](https://www.remotion.dev/). Contoh hasilnya ada di [README bahasa Inggris](README.md#made-with-these-skills).
 
-## Yang perlu disiapkan
+## Cara pakai di Codex
+
+Buka Codex dari folder repo ini. Ketik `$cartoon-3d-short`, `$captions`, `$minecraft-shorts`, atau `$minecraft-story` untuk memilih skill. Kamu tidak perlu menyalin folder skill.
+
+Untuk Minecraft Story, jalankan pemeriksaan awal (preflight) sebelum menugaskan agent. Agent bekerja dalam sesi terpisah yang hanya bisa membaca. Koordinator memeriksa usulan mereka dan menerapkannya lewat alat kepemilikan file. [Panduan Codex](docs/codex.md) menjelaskan pemeriksaan awal, persetujuan tiap tahap, dan kerja paralel.
+
+Pasang [alat untuk skill yang kamu gunakan](docs/codex.md#runtime-setup). Caption tidak perlu Remotion. Untuk video kartun, siapkan [project Remotion yang kompatibel](docs/remotion-host.md). Repo ini tidak berisi director atau renderer voxel.
+
+## Yang perlu disiapkan untuk Claude Code
 
 - PC/laptop (Windows 10/11, macOS, atau Linux). Skill ini dibuat dan dites di **Windows 11**.
 - Langganan Claude yang bisa memakai Claude Code (Pro atau di atasnya).
 - Ruang disk kosong beberapa GB untuk Node, Remotion dan hasil render.
 
-## Cara pasang (langkah demi langkah)
+## Cara pasang di Claude Code (langkah demi langkah)
 
 Semua perintah di bawah diketik di **PowerShell** (Windows: tekan Start, ketik `PowerShell`, Enter). Pengguna Mac: lihat [Cara pasang di macOS](#cara-pasang-di-macos).
 
@@ -69,13 +77,7 @@ node "$HOME\.claude\skills\minecraft-story\scripts\install.mjs"
 
 ### 5. Siapkan project Remotion
 
-Video kartun dan caption di-*render* di project Remotion:
-
-```powershell
-npx create-video@latest
-cd nama-project-kamu
-npm install @remotion/three three @react-three/fiber
-```
+Untuk video kartun, buka [project Remotion yang kompatibel](docs/remotion-host.md). Project baru dari `create-video` belum punya director. Untuk caption saja, ikuti [panduan alat caption](docs/codex.md#runtime-setup). Kamu tidak perlu membuat project Remotion.
 
 ### 6. Pakai!
 
@@ -121,12 +123,10 @@ Kalau memakai `minecraft-story`:
 node ~/.claude/skills/minecraft-story/scripts/install.mjs
 ```
 
-**4. Siapkan project Remotion, lalu pakai**
+**4. Buka project, lalu jalankan Claude**
 
 ```bash
-npx create-video@latest
-cd nama-project-kamu
-npm install @remotion/three three @react-three/fiber
+# Untuk video kartun, jalankan dari project Remotion yang kompatibel.
 claude
 ```
 
@@ -142,4 +142,4 @@ Di Mac, render memakai browser bawaan Remotion (otomatis diunduh), kecuali kamu 
 
 Login ke GitHub, buka [halaman repo ini](https://github.com/fahniazz/claude-shorts-skills), lalu klik tombol **⭐ Star** di kanan atas. Itu sangat membantu project ini 🙏
 
-Mau ikut mengembangkan? Baca [CONTRIBUTING.md](CONTRIBUTING.md) (bahasa Inggris). Lisensi: [MIT](LICENSE).
+Mau ikut mengembangkan? Baca [panduan kontribusi](CONTRIBUTING.md) (bahasa Inggris). Repo ini memakai [lisensi MIT](LICENSE). Skill kartun juga menyimpan [lisensi MIT aslinya](skills/cartoon-3d-short/LICENSE).

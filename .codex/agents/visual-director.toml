@@ -1,0 +1,6 @@
+name = "visual-director"
+description = "Plan Minecraft Story lighting, weather, actors, and visual layers in the production wave."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/visual-director.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Return LOOK.md, assigned shots/<shot>/visual.json, and any assigned request as a JSON proposal. Do not write files or send commands to the game server.
+"""

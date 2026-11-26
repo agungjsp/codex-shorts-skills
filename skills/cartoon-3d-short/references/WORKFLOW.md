@@ -5,11 +5,12 @@ description: Director mode workflow, token rules, and production stages for cart
 
 # Workflow & Director Mode
 
-User rules (language, captions, mix, export) are in SKILL.md. Reviews, models, thresholds and the gold loop are in
-`QA.md`. This file is the order of work and the token rules.
+User rules (language, captions, mix, export) are in [SKILL.md](../SKILL.md). Reviews, models, thresholds, and the gold loop are in [Quality Assurance](QUALITY_ASSURANCE.md).
+Run production commands from the [Remotion host](../../../docs/remotion-host.md), not this skills checkout.
+If you installed only the Claude skill files, find `docs/remotion-host.md` in the source checkout.
 
 ## Token Rules
-1. **Scripts before agents.** Never call an agent before every script gate passes (QA.md).
+1. **Scripts before agents.** Do not call a reviewer before every [script gate](QUALITY_ASSURANCE.md#script-gates) passes.
 2. **Agents never read code or whole files.** Send only a beat or contact sheet at most 512 px wide (`beat_sheet.py`),
    the frame numbers, and one paragraph of context (deliberate choices: silhouettes, gags).
 3. **Agent output** = compact JSON, ≤ 150 words:
@@ -23,17 +24,17 @@ User rules (language, captions, mix, export) are in SKILL.md. Reviews, models, t
 ## Stages Per Video
 1. **Script.** Write `SCRIPT.md` and `words.json`. Hook in the first second; facts verified with sources; key words in CAPS.
    - **Director plan** (main session, no agent): `npm run director -- plan stories/<slug>/SCRIPT.md --lean` until
-     it exits 0, then review `out/director/<slug>/review.md`. Loop and rules: `DIRECTOR.md`.
+     it exits 0, then review `out/director/<slug>/review.md`. Follow the [director loop](DIRECTOR.md). If the runtime is missing, stop before the storyboard.
 2. **Read first (cheap, mandatory):** `references/lessons-summary.md`, `gold/LESSONS.md`, `gold/ref_cards/<style>.json`.
-   Start from gold parameters, never from zero. `references/lessons.md` (the full log) only when a failure needs it.
+   Start from gold parameters, never from zero. Read the [full lessons log](lessons.md) only when a failure needs it.
 3. **Build.** Pick the template (below). Order: story.ts, rail / build / paint.ts, lights / world / shade / grade.ts,
    toon.ts, cast.ts, ink / lensblur / Bridge.tsx, audio. Test each aspect on a 10 s clip before any full render.
    Read `references/motion-camera.md` for every shot with a character or an action.
-4. **Script gates**, then **agent review**, then **final audit**: all in `QA.md`.
+4. **Script gates**, then **agent review**, then **final audit**. Follow [Quality Assurance](QUALITY_ASSURANCE.md).
 
 ## Template Selection
 - **Default: `templates/rail/`** — newest base, has all acting/look upgrades.
 - `templates/bridge/` — only to reproduce or adapt the Bridge set (river bridge). `templates/palace/` — indoor/outdoor
   multi-character, night, Javanese. Port upgrades from rail into them when needed.
-- `templates/court/` (PBR look) and `templates/diorama/` (our house style): `bible/modes/pbr.md`.
-- Minecraft mode: `bible/modes/minecraft.md` (voxel sets and mobs; no template copy).
+- `templates/court/` (PBR look) and `templates/diorama/` (our house style): [PBR mode](../bible/modes/pbr.md).
+- Minecraft mode: [voxel sets and mobs](../bible/modes/minecraft.md) (no template copy).

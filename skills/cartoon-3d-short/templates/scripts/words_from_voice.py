@@ -1,52 +1,114 @@
-# usage: python scripts/words_from_voice.py <voice.wav> <SCRIPT.md> <out words.json> [language=id]
-# Word timings for the voice-over: faster-whisper (word timestamps, Indonesian) gives the times, then every word of
-# the narration column in SCRIPT.md is aligned to the recognised words (difflib), so words.json always carries the
-# script's own spelling. Script words the recogniser missed get times interpolated between their aligned neighbours.
-# Output: [{"w": word, "s": start_s, "e": end_s, "beat": n}], plus <out>_raw.json with the untouched recognition.
-import difflib, json, os, re, sys
+"""Align the script's words to measured word timestamps from faster-whisper."""
+import argparse
+import difflib
+import json
+import math
+import os
+from pathlib import Path
+import re
 
-if os.environ.get("HF_CACHE_DIR"): os.environ.setdefault("HF_HOME", os.environ["HF_CACHE_DIR"])
-from faster_whisper import WhisperModel
 
-wav, script, out = sys.argv[1:4]
-lang = sys.argv[4] if len(sys.argv) > 4 else "id"
-norm = lambda w: re.sub(r"[^0-9a-z]", "", w.lower())
+def norm(word):
+    return "".join(c for c in word.casefold() if c.isalnum())
 
-# narration column of the script table: | # | Beat | Narasi | Gambar |
-words = []
-for line in open(script, encoding="utf-8"):
-    m = re.match(r"^\| (\d+) \|[^|]*\|([^|]*)\|", line)
-    if m:
-        words += [{"w": w, "beat": int(m.group(1))} for w in m.group(2).split()]
 
-model = WhisperModel("small", device="cpu", compute_type="int8")
-segs, _ = model.transcribe(wav, language=lang, word_timestamps=True, vad_filter=True, condition_on_previous_text=False)
-rec = [{"w": x.word.strip(), "s": round(x.start, 3), "e": round(x.end, 3)} for s in segs for x in s.words]
-json.dump(rec, open(out.replace(".json", "_raw.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+def narration(path, lang):
+    lines = path.read_text(encoding="utf-8-sig").splitlines()
+    if path.suffix.lower() == ".txt":
+        beats = enumerate((line.strip() for line in lines if line.strip()), 1)
+        return [{"w": w, "beat": beat} for beat, text in beats for w in text.split() if norm(w)]
+    if path.suffix.lower() != ".md":
+        raise ValueError("use a Markdown narration table (.md) or plain text narration (.txt)")
 
-sm = difflib.SequenceMatcher(a=[norm(w["w"]) for w in words], b=[norm(r["w"]) for r in rec], autojunk=False)
-for i, j, n in sm.get_matching_blocks():
-    for k in range(n):
-        words[i + k].update(s=rec[j + k]["s"], e=rec[j + k]["e"])
-hit = sum("s" in w for w in words)
-# interpolate the gaps evenly between the neighbouring aligned words
-i = 0
-while i < len(words):
-    if "s" in words[i]:
-        i += 1
-        continue
-    j = i
-    while j < len(words) and "s" not in words[j]:
-        j += 1
-    t0 = words[i - 1]["e"] if i else 0.0
-    t1 = words[j]["s"] if j < len(words) else rec[-1]["e"]
-    step = (t1 - t0) / (j - i)
-    for k in range(i, j):
-        words[k].update(s=round(t0 + (k - i) * step, 3), e=round(t0 + (k - i + 1) * step, 3), guess=True)
-    i = j
-json.dump(words, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
-print(f"{len(words)} script words, {hit} aligned, {len(words) - hit} interpolated; recognised {len(rec)}; "
-      f"speech {words[0]['s']:.2f}-{words[-1]['e']:.2f} s")
-for b in sorted({w["beat"] for w in words}):
-    ws = [w for w in words if w["beat"] == b]
-    print(f"beat {b}: {ws[0]['s']:6.2f}-{ws[-1]['e']:6.2f}  {' '.join(w['w'] for w in ws[:5])} ...")
+    words = []
+    beat_col, voice_col = None, None
+    for line in lines:
+        line = line.strip()
+        if "|" not in line:
+            beat_col, voice_col = None, None
+            continue
+        cells = [cell.strip().replace(r"\|", "|")
+                 for cell in re.split(r"(?<!\\)\|", line.removeprefix("|").removesuffix("|"))]
+        headers = [c.strip("`* ").casefold() for c in cells]
+        if "#" in headers:
+            beat_col = headers.index("#")
+            voice_col = next((headers.index(h) for h in (lang, "narration", "narasi") if h in headers), None)
+            continue
+        if voice_col is not None and max(beat_col, voice_col) < len(cells) and cells[beat_col].isdecimal():
+            words.extend({"w": w, "beat": int(cells[beat_col])} for w in cells[voice_col].split() if norm(w))
+    return words
+
+
+def write_json(path, value):
+    with path.open("w", encoding="utf-8") as output:
+        json.dump(value, output, ensure_ascii=False, indent=1)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("voice", help="recorded narration audio")
+    ap.add_argument("script", type=Path, help="numbered Narration/Narasi or EN/ID Markdown table, or narration .txt")
+    ap.add_argument("out", type=Path, help="output words.json")
+    ap.add_argument("language", choices=("en", "id"), nargs="?", default="id", help="spoken language (default: id)")
+    a = ap.parse_args()
+    try:
+        words = narration(a.script, a.language)
+    except (OSError, ValueError) as exc:
+        ap.error(f"cannot read script {a.script}: {exc}")
+    if not words:
+        ap.error(f"No narration found in {a.script} for {a.language}. Use a numbered narration table or a .txt file.")
+
+    if os.environ.get("HF_CACHE_DIR"):
+        os.environ.setdefault("HF_HOME", os.environ["HF_CACHE_DIR"])
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError as exc:
+        ap.error(f"cannot load faster-whisper: {exc}")
+    try:
+        model = WhisperModel("small", device="cpu", compute_type="int8")
+        segments, _ = model.transcribe(a.voice, language=a.language, word_timestamps=True,
+                                      vad_filter=True, condition_on_previous_text=False)
+        rec = [{"w": x.word.strip(), "s": x.start, "e": x.end} for segment in segments for x in segment.words or ()]
+    except (OSError, RuntimeError, ValueError) as exc:
+        ap.error(f"could not transcribe {a.voice}: {exc}")
+
+    raw_path = a.out.with_name(f"{a.out.stem}_raw.json")
+    try:
+        a.out.parent.mkdir(parents=True, exist_ok=True)
+        write_json(raw_path, rec)
+    except OSError as exc:
+        ap.error(f"could not write recognizer output {raw_path}: {exc}")
+    rec = [r for r in rec if norm(r["w"]) and r["s"] is not None and r["e"] is not None
+           and math.isfinite(r["s"]) and math.isfinite(r["e"]) and 0 <= r["s"] < r["e"]]
+    if not rec:
+        ap.error(f"No timed speech recognized in {a.voice}. Check the audio and language. Raw output: {raw_path}")
+
+    sm = difflib.SequenceMatcher(a=[norm(w["w"]) for w in words], b=[norm(r["w"]) for r in rec], autojunk=False)
+    matches = sum(block.size for block in sm.get_matching_blocks())
+    if not matches:
+        ap.error(f"No recognized words match the script. Check the script and language. Raw output: {raw_path}")
+
+    for op, i, j, u, v in sm.get_opcodes():
+        if op == "insert":
+            continue
+        if j - i != v - u:
+            text = " ".join(w["w"] for w in words[i:j])
+            ap.error(f"Cannot time script words without matching speech: {text!r}. Correct the alignment using {raw_path}.")
+        for word, recognized in zip(words[i:j], rec[u:v]):
+            word.update(s=recognized["s"], e=recognized["e"])
+            if op != "equal":
+                word["guess"] = True
+
+    try:
+        write_json(a.out, words)
+    except OSError as exc:
+        ap.error(f"could not write word timings {a.out}: {exc}")
+    print(f"{len(words)} script words, {matches} matched, {len(words) - matches} spelling substitutions; "
+          f"{len(rec)} recognized; speech {words[0]['s']:.2f}-{words[-1]['e']:.2f} s")
+    for beat in dict.fromkeys(w["beat"] for w in words):
+        ws = [w for w in words if w["beat"] == beat]
+        print(f"beat {beat}: {ws[0]['s']:6.2f}-{ws[-1]['e']:6.2f}  {' '.join(w['w'] for w in ws[:5])} ...")
+
+
+if __name__ == "__main__":
+    main()

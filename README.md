@@ -1,10 +1,10 @@
-# Claude Shorts Skills
+# Shorts Skills for Codex and Claude Code
 
 **English** · [Bahasa Indonesia](README.id.md)
 
 [![check](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml/badge.svg)](https://github.com/fahniazz/claude-shorts-skills/actions/workflows/check.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![GitHub stars](https://img.shields.io/github/stars/fahniazz/claude-shorts-skills?style=social)](https://github.com/fahniazz/claude-shorts-skills/stargazers)
 
-Four [Claude Code](https://claude.com/claude-code) skills for making vertical short videos (YouTube Shorts, TikTok, Reels) on your own PC: animated 3D story shorts, word-synced captions, Minecraft short scripts, and code-driven Minecraft story videos. No AI video generator: the picture is rendered with three.js inside [Remotion](https://www.remotion.dev/).
+Four skills for making vertical short videos (YouTube Shorts, TikTok, Reels): animated 3D stories, word-synced captions, Minecraft scripts, and code-driven Minecraft stories. [Codex](https://developers.openai.com/codex/) discovers the project adapters in this checkout. [Claude Code](https://claude.com/claude-code) uses the original skills. The cartoon workflow renders with three.js inside [Remotion](https://www.remotion.dev/).
 
 ## Made with these skills
 
@@ -33,9 +33,19 @@ Every frame is rendered on a home PC with three.js inside Remotion; no AI video 
 | [`cartoon-3d-short`](skills/cartoon-3d-short) | 55-70 s vertical cartoon story shorts: 2D characters in a 3D world. Script formulas, voice-over, shot plan, camera, acting presets, sound mix, QA review agents and the final render. Looks: painted, PBR, paper diorama, Minecraft voxel. |
 | [`captions`](skills/captions) | Word-synced captions as a separate green-screen (and optional ProRes 4444 alpha) clip for After Effects, timed to the narration and kept clear of the Shorts UI. |
 | [`minecraft-shorts`](skills/minecraft-shorts) | Minecraft short scripts in English and Indonesian with two formulas ("What happens if...?" and the "how you built X" evolution ladder), an in-game test list and a Replay Mod shot list. |
-| [`minecraft-story`](skills/minecraft-story) | 2:15 "In this world / In this town" Minecraft story videos, built code-first: script and originality check, storyboard with a shared `LAYOUT.json` (set bboxes and named anchors), then a parallel production wave of sub-agents (one set-builder per set, a visual director, a camera director). Each agent may only write its own files, enforced by a `PreToolUse` hook; `compile_shots.mjs` merges the layers and catches clipping, cameras inside blocks and subjects outside the Shorts safe zone before anything touches the game. Takes run over RCON + Scarpet, recorded with ReplayMod. Docs are in Indonesian. |
+| [`minecraft-story`](skills/minecraft-story) | 2:15 "In this world / In this town" Minecraft stories: script, originality review, storyboard, and a parallel production wave for sets, visuals, and camera. `compile_shots.mjs` combines the layers and checks the result before game commands run. Recording uses RCON, Scarpet, and ReplayMod. The original workflow is in Indonesian. |
 
 ## Install
+
+### Codex
+
+Open Codex from this checkout and use `$cartoon-3d-short`, `$captions`, `$minecraft-shorts`, or `$minecraft-story`. Do not copy the skills into your home directory.
+
+For Minecraft Story, run preflight before role work. Codex workers propose changes in a separate read-only session. The coordinator applies approved proposals through the ownership tool. See the [Codex guide](docs/codex.md) for preflight, gates, and wave commands.
+
+Install the [runtime tools](docs/codex.md#runtime-setup) for the skill you use. Captions do not require Remotion. Cartoon production requires a [compatible Remotion host](docs/remotion-host.md); this checkout does not ship the director or voxel renderer.
+
+### Claude Code
 
 Step-by-step guide for beginners (Windows): [README.id.md](README.id.md) (Indonesian).
 
@@ -45,10 +55,10 @@ Step-by-step guide for beginners (Windows): [README.id.md](README.id.md) (Indone
    cp -r skills/* ~/.claude/skills/
    ```
    For `minecraft-story`, also install its sub-agents with `node ~/.claude/skills/minecraft-story/scripts/install.mjs` and start a new Claude Code session.
-3. Install the tools the video skills use: Node 20+, [Remotion](https://www.remotion.dev/) with `@remotion/three`, Python 3 and ffmpeg.
+3. Install the [runtime tools](docs/codex.md#runtime-setup) for the skill you use.
 4. In Claude Code, ask for example: *"Use the cartoon short skill and make a short about the first elevator brake."*
 
-### macOS
+#### Claude Code on macOS
 
 > The skills were built and tested on Windows 11. The steps below should work on macOS, but have not been tested there yet: if something breaks, please report it in [issue #5](https://github.com/fahniazz/claude-shorts-skills/issues/5).
 
@@ -67,12 +77,11 @@ git clone https://github.com/fahniazz/claude-shorts-skills
 mkdir -p ~/.claude/skills && cp -r claude-shorts-skills/skills/* ~/.claude/skills/
 node ~/.claude/skills/minecraft-story/scripts/install.mjs   # only for minecraft-story
 
-# 5. A Remotion project to render in
-npx create-video@latest
-cd my-video
-npm install @remotion/three three @react-three/fiber
+# 5. For cartoons, open your compatible Remotion host, then start Claude there.
 claude
 ```
+
+See the [Remotion host requirements](docs/remotion-host.md). A new `create-video` project does not include the director gate.
 
 Rendering uses Remotion's own browser unless you set `CHROME_PATH`, and the caption script picks Arial Black (or DejaVu Sans Bold on Linux) by itself; pass `--font` to use another font.
 
@@ -104,4 +113,4 @@ Minecraft is a trademark of Mojang Synergies AB. This project is not affiliated 
 
 ## License
 
-MIT, see [`LICENSE`](LICENSE). `skills/cartoon-3d-short` keeps its original MIT notice as well.
+MIT, see [`LICENSE`](LICENSE). The cartoon skill keeps its [original MIT notice](skills/cartoon-3d-short/LICENSE).

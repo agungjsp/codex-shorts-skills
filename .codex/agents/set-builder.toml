@@ -1,0 +1,6 @@
+name = "set-builder"
+description = "Build one assigned Minecraft Story set and its world layers in the production wave."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/set-builder.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Read SET on the first prompt line. Return the set's specification, generator, build output, and assigned world layers as a JSON proposal. Put cross-owner requests only in REQUESTS/set-builder__<set>.md for that set. Do not write files or send commands to the game server.
+"""

@@ -8,6 +8,23 @@ description: Make word-synced captions for a short as a SEPARATE green-screen cl
 The user edits captions further in After Effects, so captions are NEVER burned into the film. Deliver a separate
 clip on pure green (#00FF00), same size, fps and frame count as the film, which they key with Keylight.
 
+## Setup from a checkout
+The caption scripts need no Remotion project. From the repository root, set the script path:
+
+```bash
+CAPTION_TOOLS=skills/cartoon-3d-short/templates/scripts
+```
+
+Use Python 3.12 and install the pinned [caption dependency](../../requirements/captions.txt) with
+`python -m pip install -r requirements/captions.txt`. Put `ffmpeg` and `ffprobe` on `PATH`.
+FFmpeg needs `libx264` and, for `--alpha`, `prores_ks`. Use `--font` if the script cannot find a heavy system font.
+In a Claude host project with the template scripts installed, use `CAPTION_TOOLS=scripts` instead.
+
+If you need to make `words.json` from a voice recording, also install the
+[alignment dependency](../../requirements/alignment.txt) with `python -m pip install -r requirements/alignment.txt`.
+The first alignment run needs the faster-whisper `small` model. It can download the model or use a populated
+`HF_CACHE_DIR`. With your own measured word timings, you do not need faster-whisper.
+
 ## Look (agreed 2026-11-11, from the user's "LOCKED" reference frame)
 - Position: centred horizontally; the middle of the capitals at **71.5 % of the frame height** (under the
   character's chest). The middle of the capitals is the anchor, so a comma or a Q never moves a caption.
@@ -16,8 +33,8 @@ clip on pure green (#00FF00), same size, fps and frame count as the film, which 
   The shadow is solid on purpose: a blurred/semi-transparent shadow keys into a green-grey fringe.
 - **Punctuation is kept** as in the script (MONA LISA. / PARIS, / 1911.). The user asked for it.
   `--strip-punct` removes trailing . , ; :
-- **2-3 words max** per caption. A caption never crosses a sentence/comma or a pause in the voice, never ends on
-  a glue word (the, of, with, yang, di, dengan ...), never splits a name (Mona | Lisa), avoids lone single words.
+- The script prefers captions of two or three words. It breaks at punctuation or a pause and avoids ending on
+  a glue word (the, of, with, yang, di, dengan ...), splitting names (Mona | Lisa), and leaving lone words.
 - Each caption appears on the frame its first word is spoken (a 5-frame pop 0.85 -> 1.06 -> 1) and holds until the
   next one. After a pause in the voice it leaves 0.25 s after its last word.
 
@@ -32,33 +49,55 @@ zone, and prints the reach (should be about "83.8 % of width, 69.8-74.0 % of hei
 `--max-width 0.68`. A single long word is shrunk to fit. Never deliver with a WARNING: lower `--size`, or raise
 `--y` a little.
 
-## Model (token saving, approved 2026-11-12)
-Run captions on **Haiku 5.5** (remotion-renderer agent with `model: "haiku"`, or a Haiku session): the script does the
-timing, splitting and safe-zone checks and prints them as text. Sonnet only to judge a new caption look; Opus only to
-change `scripts/captions.py` logic.
+## Model (Claude workflow, approved 2026-11-12)
+In Claude, run captions on Haiku 5.5 (`remotion-renderer` with `model: "haiku"`, or a Haiku session). The script
+handles timing, splitting and safe-zone checks. Use Sonnet to judge a new look and Opus to change the
+logic in `scripts/captions.py`.
 
 ## Steps
-1. Word timings: the short's `stories/<slug>/voice/words.json`. It is made by `scripts/words_from_voice.py`
-   (faster-whisper aligned to the script's spelling). If it is missing, make it first:
-   `python scripts/words_from_voice.py <voice.wav> <SCRIPT.md> <words.json> [en|id]`.
-   The times must match the film's audio (the final's voice starts at 0 s).
-2. Test span first (the user wants to SEE a short test before a full render):
+1. Use the short's measured `words.json`. It is an array of objects such as `{"w":"HOME","s":0.14,"e":0.20}`.
+   `s` and `e` are seconds on the film timeline. If the recording starts later than the film, offset the
+   word times before rendering. If you do not have word times, run:
+
+   ```bash
+   python "$CAPTION_TOOLS/words_from_voice.py" voice.wav SCRIPT.md words.json en
    ```
-   python scripts/captions.py stories/<slug>/voice/words.json out/<slug>/captions --start 0 --dur 10 \
-     --preview "out/<slug>/final/<Title>.mp4" --alpha
+
+   Use `en` for English or `id` for Indonesian. If you omit it, the script uses `id`. Use a numbered
+   Markdown table with `#` and `Narration` or `Narasi` columns, a `# | EN | ID` table, or a `.txt` file
+   with one spoken beat per nonblank line. The aligner copies measured word timestamps and keeps the script
+   spelling. Review any spelling substitutions marked `guess: true`. If the script cannot align the words,
+   correct the timing using `words_raw.json` and the voice. The aligner does not invent missing timestamps.
+2. Render the 10-second test first:
+   ```bash
+   python "$CAPTION_TOOLS/captions.py" words.json out/captions-check --start 0 --dur 10 \
+     --preview "path/to/film.mp4" --alpha
    ```
    It prints every caption with its times and the safe-zone check, and writes:
    - `captions_green.mp4`
    - `captions_alpha.mov`
    - `captions.json`
-   - `captions_preview.mp4` (film + keyed captions + sound, for checking only)
+   - `captions_preview.mp4` (film + captions + film audio, for checking only)
 3. Check:
    - Pull frames of the widest captions from the preview with the Shorts zones drawn in red (ffmpeg `drawbox`:
      x=iw*0.84 from y=ih*0.45, y=ih*0.75 to the bottom, the top ih*0.08), `hstack` them into one sheet, and look.
    - Look at one full-res crop for green fringe.
    - Send the user `captions_preview.mp4`, `captions_green.mp4` and the printed caption list.
-4. After the user's OK, render full length with `--dur <film frames / fps>` so the clip has exactly the film's frame
-   count (check with `ffprobe -count_packets`).
+4. After the user's approval, render the full clip. Use the same appearance options as in the approved test.
+
+   ```bash
+   python "$CAPTION_TOOLS/captions.py" words.json out/captions --film "path/to/film.mp4" --alpha
+   ```
+
+   `--film` reads the dimensions, frame rate and decoded frame count of the video with `ffprobe`. Omit
+   `--start` and `--dur` to match the full frame count, including any silence after the last caption. If you
+   also want a full review composite, use `--preview` in place of `--film`. Use a constant-frame-rate
+   export for exact frame timing. If your film uses variable frame rates, export a constant-frame-rate copy
+   first. Compare the video streams with `ffprobe -count_frames` before delivery.
+
+If there is no film yet, set `--w`, `--h` and `--fps` for the intended canvas. Their defaults are 1440, 2560
+and 30. `--fps` accepts a fraction such as `24000/1001`. Without `--dur`, the clip ends one second after the
+last word. Use the actual film for the approved full render.
 
 ## Knobs (scripts/captions.py)
 - `--y 0.715`: position
@@ -72,11 +111,15 @@ change `scripts/captions.py` logic.
 - `--no-pop`
 - `--lower`: keep case
 - `--strip-punct`
-- `--key-color FFD21F`: the script's KEY WORDS (CAPS in words.json) in yellow, the rest white (mc-cobblegen 2026-11-24, user choice)
+- `--key-color FFD21F`: color words written in all caps in `words.json`. Other words stay white.
 - `--alpha`: ProRes 4444
-- `--keep "the snail hole"` (repeatable): never split this phrase across captions; a 4-word caption is allowed only for it and must still fit `--max-width`. Read the full caption list after every full render and fix names or phrases that got split. If a breath of just over 0.30 s splits a phrase, raise `--gap` to 0.35.
+- `--keep "the snail hole"`: keep all matching phrases together, even across a pause. Repeat for each phrase.
+  Matching ignores case and punctuation. A kept phrase can exceed `--max-words`, but it still has to fit
+  `--max-width`. Read the full caption list after every full render and fix any split names or phrases.
 
 ## AE notes for the user
 - **Green clip:** use Keylight with Screen Colour = pure green. It is yuv444 crf 8, so edges stay clean.
-- **Alpha .mov:** needs no key at all (drop it on top). With `--key-color` prefer it: a green despill (Keylight too) pushes yellow toward orange; the preview then uses the alpha clip.
+- **Alpha .mov:** place it on top of the film without a key. With `--key-color`, prefer alpha because green
+  despill can shift yellow toward orange. With `--preview film.mp4 --alpha`, the preview composites the alpha
+  clip directly without despill.
 - **captions.json:** lists each caption's text and in/out seconds, for rebuilding them as text layers.

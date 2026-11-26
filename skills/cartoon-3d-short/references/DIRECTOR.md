@@ -5,9 +5,12 @@ description: AI director step - SCRIPT.md to a validated animation plan, preview
 
 # Director Plan (script -> validated animation plan)
 
-Code: `src/director/` in the Remotion project. It plans only: it renders nothing and never edits story.ts.
-Minecraft sets (`World: minecraft`) and motion presets (`shots[].presets`) are in `bible/modes/minecraft.md`.
-Run it in the **main session** (it is a director decision, not a review; no agent, no subagent).
+Run the director from the Remotion host root. Its code lives in `src/director/`. It plans only. It does not render or edit `story.ts`.
+This skills checkout does not contain that runtime. Follow the [host setup](../../../docs/remotion-host.md) before running the director.
+If the host lacks the director, stop here. Do not skip the plan to start storyboards or 3D work.
+
+For Minecraft sets (`World: minecraft`) and motion presets (`shots[].presets`), use the [Minecraft mode guide](../bible/modes/minecraft.md).
+Run the director in the main session. This is a director decision, not an agent review.
 
 ## When
 - After `SCRIPT.md` is approved, before the thumbnail storyboard.
@@ -41,7 +44,7 @@ Exit codes: 0 = no errors, 1 = errors or pending, 2 = usage or unreadable input.
 ## What the outputs feed
 | Output | Used by |
 |--------|---------|
-| `review.md` shots (one line per move, `@"word"`) | `THUMBS.md` rows: "viewer must see ___ exactly on ___" (STORYTELLING.md) |
+| `review.md` shots (one line per move, `@"word"`) | `THUMBS.md` rows: "viewer must see ___ exactly on ___" ([Storytelling](STORYTELLING.md#thumbnail-storyboard-mandatory-before-any-3d)) |
 | `animation-plan.json` takes + camera moves | the `PLAN` takes and camera rails in `story.ts`, written by hand |
 | `gap-report.json` (🚧 actions) | the pose and clip backlog for step 6 (Characters) |
 | `constraints.json` "manual" rows | the sound-off review checklist |
@@ -49,7 +52,7 @@ Exit codes: 0 = no errors, 1 = errors or pending, 2 = usage or unreadable input.
 ## After story.ts exists
 - Add `"<slug>": "src/videos/<name>/story.ts"` to `src/director/config/stories.json`, so `validate` checks the
   plan's takes against the `PLAN` in story.ts.
-- `npm run director -- validate out/director/<slug>` is script gate 0 (QUALITY_ASSURANCE.md).
+- `npm run director -- validate out/director/<slug>` is [script gate 0](QUALITY_ASSURANCE.md#script-gates).
 - A hand edit to `animation-plan.json`: run `validate`, then `npm run director -- preview out/director/<slug>`.
 
 ## Rules

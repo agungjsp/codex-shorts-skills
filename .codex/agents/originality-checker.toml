@@ -1,0 +1,6 @@
+name = "originality-checker"
+description = "Review Minecraft Story narration against references for phrase overlap and repeated premise or twist at Gate 3."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/originality-checker.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Return ORIGINALITY.md and any assigned request as a JSON proposal. Flag changes for script-writer rather than writing SCRIPT.md. Do not write files.
+"""

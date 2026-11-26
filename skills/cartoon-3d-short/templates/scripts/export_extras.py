@@ -6,7 +6,7 @@ usage: python -I scripts/export_extras.py <words.json> <shots.json> <mix_dir> <o
   (the shorts carry no captions); upload it to YouTube / TikTok or use it in the editor.
 - shots.edl: one event per shot (name, start, end) of the finished video, reel = the video file, so Premiere,
   DaVinci Resolve or CapCut can cut the final mp4 back into its shots. shots.json comes from scripts/dump_shots.mjs.
-- stems/: voice.wav, music.wav, sfx.wav and mix.wav copied from the audio mix folder.
+- stems/: voice.wav, music.wav, sfx.wav and mix.wav copied from the audio mix folder. All four files are required.
 """
 import json, os, shutil, sys
 
@@ -15,6 +15,10 @@ def opt(k, d):
     return args[args.index(k) + 1] if k in args else d
 words_path, shots_path, mix_dir, out = args[:4]
 FPS, TITLE = int(opt("--fps", "30")), opt("--title", "SHORT")
+stems = ("voice.wav", "music.wav", "sfx.wav", "mix.wav")
+missing = [name for name in stems if not os.path.isfile(os.path.join(mix_dir, name))]
+if missing:
+    sys.exit(f"Missing audio files in {mix_dir}: {', '.join(missing)}")
 os.makedirs(out, exist_ok=True)
 
 def srt_t(t):
@@ -48,8 +52,6 @@ with open(os.path.join(out, "shots.edl"), "w", encoding="utf-8") as fh:
         fh.write(f"* FROM CLIP NAME: {TITLE}.mp4\n* COMMENT: {s['name']}\n\n")
 
 os.makedirs(os.path.join(out, "stems"), exist_ok=True)
-for name in ("voice.wav", "music.wav", "sfx.wav", "mix.wav"):
-    p = os.path.join(mix_dir, name)
-    if os.path.exists(p):
-        shutil.copy2(p, os.path.join(out, "stems", name))
+for name in stems:
+    shutil.copy2(os.path.join(mix_dir, name), os.path.join(out, "stems", name))
 print(f"{len(cues)} captions, {len(shots)} shots, stems -> {out}")

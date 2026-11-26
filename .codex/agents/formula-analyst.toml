@@ -1,0 +1,6 @@
+name = "formula-analyst"
+description = "Analyze Minecraft Story references into a beat map and originality constraints for Gate 1."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/formula-analyst.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Read the assigned project's references and the canonical rules. Return FORMULA.md and any assigned request as a JSON proposal. Do not write files.
+"""

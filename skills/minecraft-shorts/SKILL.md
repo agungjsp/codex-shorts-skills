@@ -1,6 +1,10 @@
 ---
 name: minecraft-shorts
-description: Write ~30-60 s Minecraft short scripts (narration EN + ID, in-game test list, footage prep; the user records and voices them) for the user's Minecraft channel with two proven script formulas. (1) "What happens if...?" rule-collision test (melZerry loyalty-trident short, 16.9M views): a known mechanic, the one condition it relies on removed, two questions, test on camera, twist ending. (2) Formula C "How you built X" evolution ladder: a primitive build that one mob keeps beating, rung by rung, until it becomes a known build (mob farm, iron farm, ice highway), ending "Congratulations, you have built a ___". Covers idea mining + novelty check, EN + ID narration, in-game test protocol with fallback lines, Replay Mod shot list, titles. Use when the user asks for a Minecraft short/idea/script, "formula minecraft", "what happens if minecraft", "formula trident", "formula C minecraft", "how you invented minecraft", or "minecraft ladder".
+description: >-
+  Write 30–60 second English and Indonesian Minecraft short scripts for a
+  "What happens if...?" mechanic test or a "How you built X" evolution ladder.
+  Use for Minecraft short ideas, novelty checks, bilingual narration, in-game
+  test and fallback lines, and a recording shot list. The user records and voices the short.
 ---
 
 # Minecraft shorts
@@ -22,7 +26,7 @@ Reference analysis (the trident short + its creator's own breakdown + channel hi
 - A healthy channel mixes both. The ladder is the base, and a what-if goes out whenever a strong twist turns up.
 
 ## Scope: script only (user decision 2026-11-12)
-The user records the footage and does the voice-over by hand. Claude delivers ONE `SCRIPT.md` per short with:
+The user records the footage and does the voice-over by hand. Deliver one `SCRIPT.md` per short with:
 0. **Full narration** at the top: one EN and one ID ```text block with the whole narration as continuous text
    (no [T] markers), generated from the table so the user can copy it in one go for the voice-over.
 1. **Narration table:** # · EN · ID · picture on the word. Lines that depend on the game are marked [T1]...
@@ -48,9 +52,10 @@ Length 30-60 s (longer is fine if the ladder needs it).
 
 ## Shared rules (both formulas)
 - **Test in-game before the script is final.** Note edition + version. Never script a result you haven't seen.
+- Install `yt-dlp` from [`requirements/minecraft-shorts.txt`](../../requirements/minecraft-shorts.txt) when using this checkout. For a standalone install, use `python -m pip install yt-dlp`.
 - Novelty check: search YouTube (`python -m yt_dlp --flat-playlist --print "%(view_count)s | %(title)s"
-  "ytsearch8:minecraft <idea>"`) and drop ideas already done with big views.
-- Every line's picture lands on its word; intro cuts < 1 s; Replay Mod camera paths; two identical skins when two players are needed.
+  "ytsearch8:minecraft <idea>"`) and drop ideas already done with big views. If the search fails, report it as unverified.
+- Every line's picture lands on its word. Intro cuts are under 1 s. Plan Replay Mod paths only for a supported Java setup. Otherwise give a manual capture plan. Use identical skins when two players are needed.
 - Narration flows with no pauses (the user records the VO by hand).
 - Edit notes only if asked: recorded SFX only, one intrigue music bed (license checked), final named by the title.
 - Ideas and scripts live in `stories/minecraft-what-if/` (what-if) and `stories/minecraft-ladder/` (ladder).

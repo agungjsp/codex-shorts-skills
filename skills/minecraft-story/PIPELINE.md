@@ -2,6 +2,7 @@
 
 Dokumen operasional. Dibaca mulai Step 5. Semua path file project relatif ke `projects/<slug>/`.
 `SKILL` = `~/.claude/skills/minecraft-story`, dan semua script dipanggil dengan path absolut.
+Untuk Codex, gunakan path `SKILL` dari overlay Codex. Diagram berikut menunjukkan jalur in-game; lihat §4b untuk semua jalur produksi.
 
 ## 1. Arsitektur
 
@@ -32,9 +33,9 @@ assemble.mjs (cek frame per shot → concat → mux mix.wav) ─► final.mp4 2:
 | Storyboard, set, anchor | storyboard-director | `base.json`, `LAYOUT.json` |
 | World & blok | set-builder | `.mcfunction` (fill/setblock) via RCON, atau WorldEdit paste |
 | Waktu, cuaca, cahaya, aktor, mob massal | visual-director | gamerule/time/weather, summon, Scarpet |
-| Kamera | camera-director | ReplayMod camera path |
+| Kamera | camera-director | `camera.json`; operator menerapkan key ke alat sesuai jalur |
 | Gabung + cek | `compile_shots.mjs` | hasil `shots/<shot>.json` |
-| Take & render | orchestrator | `shot.mjs`, ReplayMod |
+| Take & render | orchestrator | `shot.mjs` dan ReplayMod/BBS, Blender, atau Mine-imator |
 | Audio mix, assembly | orchestrator | `audio/mix.wav`, `assemble.mjs` → `final.mp4` |
 | Caption/overlay | packager-qa + skill `captions` | Remotion |
 
@@ -83,7 +84,7 @@ Nama shot huruf kecil tanpa spasi (`s07`, `s12b`). Nama folder lapisan = nama sh
 ```json
 { "set": "well", "build": { "mode": "file", "file": "sets/well/build/well.mcfunction" }, "delta": [] }
 ```
-- `build.mode`: `file` (default) | `schem` (WorldEdit paste, butuh player online). File harus di `sets/<set>/`.
+- `build.mode`: `file` (default, `build.file`) atau `schem` (`build.schem`, path relatif ke project di `sets/<set>/`). Untuk paste in-game, siapkan salinan di server sesuai §4c.
 - `delta` = setblock/fill khusus shot, dengan koordinat absolut di dalam bbox (`~` ditolak).
 
 ### 3d. `visual.json` (visual-director)
@@ -134,8 +135,8 @@ node SKILL/scripts/compile_shots.mjs projects/<slug> [--shot s01,s02] [--partial
 ```
 - LAYOUT: anchor di dalam bbox, jarak set ≥ spacing.
 - Lapisan lengkap (`--partial` = lapisan hilang hanya WARN), key milik lapisan yang benar, set sama di semua lapisan, anchor dan aktor dikenal, semua `cast` ditempatkan.
-- Aktor: blok di kaki dan kepala udara, ada lantai padat di bawah. Dibaca dari file build + delta.
-- Kamera: di dalam bbox dan di udara. Subject di area aman Shorts (x 4–84 %, y 8–75 %) pada t 0 / 0.5 / 1, `must_see` terlihat.
+- Aktor: blok di kaki dan kepala udara, ada lantai di bawah. Kamera: key di dalam bbox dan di udara. Cek isi blok memakai file build + delta dan light; tanpa file build yang bisa dibaca, mode `schem` melewati cek isi blok (WARN).
+- Subject di area aman Shorts (x 4–84 %, y 8–75 %) pada t 0 / 0.5 / 1, `must_see` terlihat.
 - Command delta/light/build absolut dan di dalam bbox.
 - Timing:
   - Dari `audio/TIMING.md` (+ `start_word` dari `audio/words.json`).
@@ -156,6 +157,8 @@ node SKILL/scripts/check_ownership.mjs projects/<slug> --verify          # sesud
 - ada folder `sets/<x>/` yang tidak ada di LAYOUT.
 
 ## 4. Alur satu shot (Step 8)
+
+### 4a. Take in-game
 
 Set tidak dibangun terpisah: `prep` memuat chunk set (`forceload add`, baris pertama `pre`) lalu mengirim file build + delta.
 `shot.mjs` membaca balasan server: balasan error ("Unknown or incomplete command", "is not loaded", error scarpet, …) = **ERR**, shot berhenti (kecuali `--continue`). `kill`/`player … kill`/`forceload` yang "gagal" karena tidak ada yang perlu dikerjakan diabaikan.
@@ -182,12 +185,26 @@ Command freeze diambil dari `.rcon.json` (`tick_freeze`, `tick_unfreeze`) — di
 
 Section shot.mjs: `pre build actors load take post`. Grup: `prep` = pre,build,actors,load. (`scarpet` = alias lama untuk load,take.)
 
-### 4b. Shot `[BBS]` dan `[ANIM]`
-- `[BBS]`:
-  1. Jalankan prep seperti biasa.
-  2. Aktor BBS diatur di film BBS (pose/replay).
-  3. Take direkam dengan BBS + ReplayMod sekaligus. Posisi aktor tetap dari `actors[].at` hasil compile.
-- `[ANIM]` (P2): ekspor set (`.schem`) → Blender/MCprep. Kamera memakai `camera.keys` yang sama, dengan frame dari hasil compile.
+### 4b. Serah terima ke operator P1–P4
+
+Orchestrator menjadi operator. Pilih jalur di Step 0 dan catat pembagian shot di `SHOTLIST.md` lewat storyboard-director sebelum Gate 5. Gate 5 membekukan storyboard, set, dan anchor. Wave tetap tanpa server: set-builder menyiapkan `SPEC.md`, build, dan `world.json`; visual-director menyiapkan `LOOK.md` dan `visual.json`; camera-director menyiapkan `camera.json`. Semua jalur tetap melewati audit, compile, dan continuity (Gate 6), lalu compile ulang dengan timing VO (Gate 7). Take dan render dimulai setelah Gate 7. `camera.engine` tidak menjalankan alat atau memilih jalur secara otomatis.
+
+| Jalur | Yang diterima operator | Yang dikerjakan operator |
+|---|---|---|
+| P1: ReplayMod + BBS | Build dan delta dari set-builder; `pre`, `actors`, `scarpet`, dan `LOOK.md` dari arahan visual; `camera.keys` hasil compile | Ikuti §4a. Untuk `[BBS]`, pakai `actors[].at` untuk menempatkan aktor dan atur pose/gerak di film BBS. Mulai rekam ReplayMod sebelum `take`, jalankan adegan BBS, lalu susun path ReplayMod dari key (`f / 30`, `pos`, `yaw`, `pitch`). Pakai FOV vertikal shot. |
+| P2: hybrid Blender/MCprep | Paket P1 untuk shot in-game. Untuk `[ANIM]`, terima geometri set, origin dan anchor, arahan visual, `actors`, serta `camera.keys` | Jalankan §4a hanya untuk shot in-game. Untuk `[ANIM]`, gunakan `.schem` bila importir mendukungnya, atau ekspor area set menjadi mesh dari salinan world. Impor ke Blender dan siapkan material/rig dengan MCprep sesuai versi yang dipakai. Animasi aktor, set, dan kamera di Blender. |
+| P3: Blender penuh | `SPEC.md`, geometri atau build set, `LAYOUT.json`, `LOOK.md`, aktor dan key kamera hasil compile untuk semua shot | Impor atau bangun ulang set di Blender. Siapkan rig, material, cahaya, cuaca, dan aksi sesuai arahan pemiliknya. Terapkan perubahan set khusus shot dari `world.json`; perintah Minecraft/Scarpet tidak berjalan di Blender. Jangan jalankan `shot.mjs` untuk render Blender. |
+| P4: Mine-imator | Data set, anchor, look, aktor, dan key kamera yang sama untuk semua shot | Impor area world atau format schematic yang diterima versi Mine-imator yang dipakai. Jika format tidak cocok, konversi atau bangun set dari `SPEC.md`, lalu cocokkan lagi dengan anchor. Atur aktor, perubahan set, cahaya, dan kamera di Mine-imator; jangan jalankan `shot.mjs` untuk render Mine-imator. |
+
+Untuk shot di luar game, petakan skala satu blok, sumbu vertikal, arah `front`, dan origin scene dari `LAYOUT.json`. Pindahkan posisi aktor dan `camera.keys[].pos`/`look` dengan transformasi yang sama. Pakai `f` sebagai nomor frame relatif terhadap awal shot (pada 30 fps); cek FOV vertikal pada kanvas 9:16. Key terakhir `f = frames` menandai batas shot; jika frame pertama di alat bernomor 1, render frame 1 sampai `frames` untuk menghasilkan tepat `frames` gambar. Pada P2, cocokkan landmark, skin, dan cahaya dengan shot in-game di sekitar cut.
+
+Semua jalur menyerahkan `captures/<shot>/render.mp4` sesuai §8. Catat alat, file sumber/take yang dipakai, hasil inspeksi, dan keputusan di `captures/NOTES.md`. Jika set, aktor, atau kamera tidak pas, minta perbaikan ke pemilik lapisan, compile ulang, dan ikuti gate yang berlaku. Jangan mengedit hasil compile.
+
+### 4c. Staging schematic dan cek fisik
+
+1. Set-builder menyimpan `.schem` di `sets/<set>/`, menunjuknya di `world.json` dengan `build.schem`, dan mencatat bbox, orientasi, serta titik referensi clipboard di `SPEC.md`. Untuk paste tanpa offset, simpan origin clipboard di pojok bawah bbox yang sama dengan `LAYOUT.json.origin`. Jika file punya offset, benahi origin saat ekspor dan cek lagi; posisi paste bukan jaminan pojok bbox jatuh tepat di sana.
+2. Untuk P1/P2 in-game, orchestrator menyalin file ke folder schematic WorldEdit **server** (biasanya `<server>/config/worldedit/schematics/`; cek konfigurasi). Gunakan nama dasar unik yang sama, tanpa mengganti nama file. `shot.mjs` tidak menyalin file: ia memanggil `//schem load <nama-dasar>` dalam sesi player online (`@p` secara default), lalu `//paste -a` pada `build.origin` dengan player yang sama. Pastikan player yang dipilih punya izin WorldEdit dan berada di dimensi set. Jika perintah lewat RCON ditolak, hentikan prep dan periksa akses serta sesi WorldEdit; jangan anggap paste berhasil. `-a` melewati blok udara, jadi blok lama bisa tertinggal.
+3. Setelah paste atau impor, cek bbox, arah `front`, ukuran dan landmark terhadap `LAYOUT.json`. Setelah delta dan cahaya diterapkan, cek lantai di bawah kaki, ruang kaki/kepala, jalur aktor, serta key dan lintasan kamera di antara key. Periksa framing dan `must_see` dalam 9:16. Cek ini wajib meski compile lolos: compile tidak membaca isi `.schem` atau memeriksa hasil impor maupun interpolasi di alat render. Catat hasil di `captures/NOTES.md` sebelum take/render.
 
 ## 5. Scarpet — pemakaian
 
@@ -268,7 +285,7 @@ Kamera eye level (y mata aktor ±0.3) kecuali cerita butuh lain. Sumbu 180° dij
 
 ## 8. Render & assembly
 
-1. Render per shot → `captures/<shot>/render.mp4` (H.264, 1080×1920, 30 fps, CRF 16–18).
+1. Semua jalur P1–P4: serahkan satu MP4 H.264 per shot di `captures/<shot>/render.mp4`, vertikal 1080×1920, 30 fps konstan, CRF 16–18 bila tersedia. Mulai dari frame lokal pertama shot, tanpa slate atau caption. Pakai `frames` hasil compile dengan `timing: "vo"`; mix audio dilakukan saat assembly.
 2. Cek: `node SKILL/scripts/assemble.mjs projects/<slug> --check`
    - render kurang frame dari `frames` → FAIL (render ulang shot itu); lebih → dipotong di akhir (WARN).
 3. Gabung + mux: `node SKILL/scripts/assemble.mjs projects/<slug>` → `final.mp4`

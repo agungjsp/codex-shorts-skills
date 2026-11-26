@@ -1,20 +1,19 @@
 # TOOLS — Stack produksi (code-first)
 
 ## 0. VERSI TERKUNCI
-Minecraft Java **1.20.1** + **Fabric** + **Fabric API**. Java 17. RAM 8 GB.
-Alasan: 1.20.1 = versi "LTS" machinima — BBS, ReplayMod, Physics Mod, Animated Java, Carpet semuanya punya build matang di sini. Jangan upgrade ke 1.21/26.x di tengah project.
+Baseline untuk shot in-game P1/P2: Minecraft Java **1.20.1** + **Fabric** + **Fabric API**, dengan Java 17. Siapkan RAM 8 GB. Baseline ini bukan daftar versi yang sudah diuji bersama. Jangan ganti versi Minecraft di tengah produksi.
 
 Aturan:
-- Download SEMUA mod file **1.20.1 Fabric** dari Modrinth (prioritas) / CurseForge. Jangan campur versi.
+- Untuk setiap mod yang dipakai, pilih rilis **Fabric untuk Minecraft 1.20.1** dari sumber resmi pembuatnya (misalnya Modrinth atau CurseForge). Periksa dependensi dan konflik sebelum memasang.
 - **Dua instance**, jangan digabung:
   - `MC-Story Server` — dedicated server lokal (automation, RCON, WorldEdit, Carpet)
   - `MC-Story Client` — client yang connect ke `localhost`, isinya semua mod visual + BBS + ReplayMod + Iris
-- Catat versi tiap mod di `projects/<slug>/MODLIST.txt`. Jangan update di tengah project.
+- Kunci versi dan sumber paket di `projects/<slug>/MODLIST.txt` sesuai §8. Jangan update di tengah project.
 - Schematic & build dibuat dari world 1.20.1 yang sama.
 - World server: **superflat** (`level-type=minecraft\:flat`, `generate-structures=false`). Terrain asli di dalam bbox set mengacaukan cek blok compile dan memperlambat build.
 
 ### Kenapa harus dedicated server lokal
-RCON cuma ada di dedicated server (bukan singleplayer). Dan `/tick freeze`, `/tick step`, `/player` (fake player) butuh Carpet. Kombinasi server lokal + RCON = semua aksi bisa dikirim dari script. Client tetap dipakai untuk melihat, merekam, dan render.
+RCON digunakan oleh server dedicated, bukan singleplayer. P1 dan shot in-game P2 memakai server lokal untuk command dan client terpisah untuk rekam dan render. Shot di luar game mengikuti [serah terima P1–P4](PIPELINE.md#4b-serah-terima-ke-operator-p1p4); alat render tidak menjalankan command Minecraft.
 
 ---
 
@@ -37,7 +36,7 @@ Helper di skill ini (path absolut `~/.claude/skills/minecraft-story/scripts/mc/`
 ## 2. World building
 | Tool | Fungsi | Catatan |
 |---|---|---|
-| **WorldEdit** (Fabric, server-side) | `//schem load`, `//paste`, `//set`, `//replace`, mask | Bisa dipanggil via RCON dengan `execute as <player> at <pos> run //paste` |
+| **WorldEdit** (Fabric, server-side) | `//schem load`, `//paste`, `//set`, `//replace`, mask | Staging file ke folder WorldEdit server, lalu paste dengan konteks player online; lihat [staging dan cek fisik](PIPELINE.md#4c-staging-schematic-dan-cek-fisik) |
 | **Axiom** | Editor build tercepat, brush, stamp, import `.schem`, **Lua Script Brush**, Animated Rebuild | 1.20.1 tersedia; lisensi ARR/komersial untuk kerja profesional |
 | **Litematica** | Hologram preview schematic sebelum paste | Client-side |
 | **Python `mcschematic`** | Generate `.schem` dari kode (dipakai `set-builder`) | Opsional, butuh Python; default-nya mode `file` (`.mcfunction`) |
@@ -45,7 +44,7 @@ Helper di skill ini (path absolut `~/.claude/skills/minecraft-story/scripts/mc/`
 
 **Prinsip:** build besar jangan diklik. `set-builder` menghasilkan salah satu dari:
 - `sets/<set>/build/<set>.mcfunction` — daftar `setblock`/`fill` (default; dikirim `shot.mjs` saat prep, dan dibaca compile untuk cek blok)
-- `sets/<set>/<set>.schem` — untuk paste WorldEdit / Axiom (cek blok compile dilewati)
+- `sets/<set>/<set>.schem` — untuk paste WorldEdit atau impor yang kompatibel. Compile tidak membaca isi schematic; cek ukuran, origin, dan ruang aktor/kamera secara manual.
 
 ---
 
@@ -100,14 +99,26 @@ Kamera default: **ReplayMod** (deterministik, bisa diubah tanpa rekam ulang). BB
 - **Physics Mod (Lite/Pro)** → block fracture, ragdoll, cloth, smoke (1.20.x tersedia). ⚠️ jangan dipakai bareng `/tick freeze` — tidak deterministik.
 - **Effective / Particular / Wakes** → particle, kabut, air terjun, riak air.
 - **Sound Physics Remastered** → audio spasial (opsional).
-- Render: **ReplayMod render** (FFmpeg built-in) → `render.mp4`.
-- Post: **FFmpeg** (concat/trim) + **Remotion** (caption & overlay, project Remotion kamu) + skill `captions`.
+- Render in-game: **ReplayMod** memakai FFmpeg. Atur lokasi executable FFmpeg jika tidak terdeteksi.
+- Post: **FFmpeg** untuk gabung dan potong, lalu skill `captions` untuk klip terpisah. Gunakan Remotion hanya bila perlu overlay tambahan.
 
 ---
 
 ## 8. Urutan install minimum
+Daftar ini menunjukkan komponen dan urutan setup, bukan kombinasi versi yang sudah diuji.
+
+### macOS Apple Silicon (ARM64)
+
+- Pilih build macOS AArch64/ARM64 untuk Java 17, Node.js 20 atau lebih baru, FFmpeg/ffprobe, dan Blender bila diperlukan. Gunakan Python 3.12 ARM64 untuk schematic. Pasang paket dari [`requirements/minecraft-schematic.txt`](../../requirements/minecraft-schematic.txt) di virtual environment. Cek arsitektur dan versi alat dengan `uname -m`, `java -version`, `node -p process.arch`, `ffmpeg -version`, dan `ffprobe -version`.
+- Pilih Java 17 ARM64 di pengaturan launcher client. Untuk server, jalankan dengan executable Java 17 yang sama, misalnya `JAVA_HOME=$(/usr/libexec/java_home -v 17 -a arm64)` lalu `"$JAVA_HOME/bin/java" -version`. Cek arsitektur executable dengan `file "$JAVA_HOME/bin/java"` dan `file "$(command -v ffmpeg)"`. Arahkan ReplayMod ke executable FFmpeg ini bila PATH launcher berbeda dari terminal.
+- Untuk P2/P3, pin Blender, MCprep, dan importir yang dipakai. Untuk P4, cek platform yang didukung rilis Mine-imator yang dipilih. Jika tidak ada build yang cocok untuk macOS ARM64, siapkan host yang didukung; jangan menganggap Rosetta atau VM akan bekerja.
+
+### Server dan client
+
+Untuk P1 dan shot in-game P2, buat profil client Fabric dan direktori server Fabric terpisah. Pada installer Fabric, pilih versi Minecraft **1.20.1** dan nomor rilis Loader yang tercatat. Fabric API adalah mod terpisah, bukan bagian dari installer. Jalankan setup dan cek Step 0.5 sebelum produksi; jangan gunakan server saat wave.
+
 **Server** (`MC-Story Server`):
-1. Fabric Loader 1.20.1 + Fabric API
+1. Fabric Loader yang mendukung Minecraft 1.20.1 + Fabric API untuk 1.20.1
 2. Carpet
 3. WorldEdit
 4. (opsional) Chunky untuk pre-render chunk
@@ -123,9 +134,22 @@ Kamera default: **ReplayMod** (deterministik, bisa diubah tanpa rekam ulang). BB
 8. Physics Mod, Distant Horizons, Effective, Wakes, Armor Statues
 
 **Tooling** (di luar game):
-9. Node 18+ → `SKILL/scripts/compile_shots.mjs`, `SKILL/scripts/mc/rcon.mjs`, `shot.mjs`; `npm i mineflayer` kalau perlu bot
-10. FFmpeg di PATH
-11. Java 17 (untuk ReplayStudio / jar tooling)
+9. Node.js 20 (versi yang dipakai CI) → `SKILL/scripts/compile_shots.mjs`, `SKILL/scripts/mc/rcon.mjs`, `shot.mjs`; `npm i mineflayer` kalau perlu bot
+10. FFmpeg dan ffprobe di PATH
+11. Java 17, termasuk untuk ReplayStudio jika dipakai
+
+### Catatan versi per produksi
+
+Orchestrator menyimpan `projects/<slug>/MODLIST.txt` sebagai daftar paket untuk mengulang setup. Jangan isi dengan `latest` atau rentang versi. Catat nilai persis dari paket yang dipilih:
+
+| Bagian | Yang dicatat |
+|---|---|
+| Host dan alat | OS/arsitektur, vendor dan build Java 17, Node, FFmpeg/ffprobe; jika dipakai: Python dan dependensinya, Blender, MCprep, importir, Mine-imator |
+| Server dan client | Minecraft **1.20.1**, versi Fabric Installer dan Loader untuk tiap profil, versi dan nama file setiap JAR (termasuk Fabric API, Carpet, WorldEdit, BBS, ReplayMod, Iris, Sodium, dependensi) |
+| Shader dan konfigurasi | Nama paket shader, versi/nama ZIP, preset dan opsi yang diubah, resource pack, seed/dimensi world, difficulty, dan bentuk command freeze/unfreeze yang dipakai; jangan simpan password RCON |
+| Sumber dan bukti | URL rilis dan SHA-256 tiap paket jika tersedia atau dihitung dari file lokal (`shasum -a 256 <file>`). Simpan snapshot konfigurasi tanpa rahasia atau catat lokasinya. Pisahkan status `belum diuji` dari hasil cek operator (tanggal, host, cakupan, hasil). |
+
+Untuk komponen yang tidak dipakai, catat `tidak dipakai`. Simpan daftar bersama project; bila harus mengganti paket setelah lock, simpan revisi sebelumnya dan catat ulang bukti untuk kombinasi baru. Bukti lama yang tersedia hanya mencakup cek Carpet/Scarpet dan freeze di server lokal pada 24 November 2026 (Carpet `1.20-1.4.112`, 14/14 pada cakupan saat itu); lihat [catatan uji](scripts/mc/README.md#status-uji-app-scarpet). Itu bukan bukti Java, Loader, client, shader, atau alat render tertentu sudah bekerja bersama.
 
 ---
 
@@ -147,7 +171,7 @@ Target realistis: **±75% shot bisa disiapkan lewat file/command**, sisanya tang
 | RCON tidak connect | Cek `enable-rcon`, port 25575, firewall, server sudah fully started |
 | Command "jalan" tapi tidak ada efek | RCON membalas error sebagai teks. `shot.mjs`/`rcon.mjs` menandainya `ERR`; baca barisnya |
 | `fill`/`summon` gagal "not loaded" | Chunk set belum dimuat → `forceload add` (otomatis di section `pre`) |
-| `//paste` dari console gagal | WorldEdit butuh player context → `execute as <player> at <pos> run //paste` |
+| `//paste` dari console gagal | Cek izin, player online, dimensi, dan folder schematic server; lihat [staging dan cek fisik](PIPELINE.md#4c-staging-schematic-dan-cek-fisik) |
 | `/tick freeze` bikin partikel/air diam | Benar; unfreeze saat take, freeze hanya untuk build & inspeksi |
 | `/tick freeze` dua kali = dunia jalan lagi | Toggle. Pakai bentuk eksplisit lewat `.rcon.json` |
 | Fake player memakai skin akun orang lain | Nama fake player = nama akun Mojang. Pakai nama yang tidak dipakai akun mana pun + skin lokal |

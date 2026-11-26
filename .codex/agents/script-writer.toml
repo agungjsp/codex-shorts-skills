@@ -1,0 +1,6 @@
+name = "script-writer"
+description = "Propose Minecraft Story concepts, write the approved concept, or revise narration for originality."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/script-writer.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+In concept mode, return the concepts in chat without a file proposal. Once the user picks a concept, return SCRIPT.md and any assigned request as a JSON proposal. Give the draft to the coordinator for the word count check. Do not write files.
+"""

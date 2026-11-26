@@ -7,7 +7,8 @@ This is the house style the user approved on 2026-11-11, built from the court te
 
 The set is the court gate courtyard (tower corner, arch with a light shaft, pavilion, shed, fences, board, grass). There are two shots and two characters, the same as court round 7, so the template can be compared with it.
 
-The full knob table, court vs diorama, is in `references/PBR_LOOK.md` → "Own style: diorama". Read that file first. Every PBR trap applies here too.
+See [PBR mode, “Own style: diorama”](../../bible/modes/pbr.md) for the Court and Diorama settings. Its PBR guidance also applies here.
+Use a [configured Remotion host](../../../../docs/remotion-host.md). This folder is not a standalone project.
 
 | File | Owns (differences from court in bold) |
 |---|---|
@@ -18,9 +19,9 @@ The full knob table, court vs diorama, is in `references/PBR_LOOK.md` → "Own s
 | `sandbox_index.tsx` | Remotion entry (composition `Diorama`, 120 f, 1080x1920) |
 
 ## Start a new short in this style
-1. Copy this folder to `src/videos/<name>/` and `sandbox_index.tsx` to `src/sandboxes/<name>/index.tsx`, fixing its import path.
-2. Copy `templates/scripts/diorama-stills.mjs` to `scripts/<name>-stills.mjs`, setting its entry path. Also copy `hdr_sky.py`.
-3. Put the HDRI and sky jpg into `public/<name>/` and update the two `staticFile` paths in `world.ts`. They read `court/…` now.
+1. Copy this template to the host's `src/videos/<name>/`. Copy `sandbox_index.tsx` to `src/sandboxes/<name>/index.tsx` and update its import.
+2. Copy [`diorama-stills.mjs`](../scripts/diorama-stills.mjs) to `scripts/<name>-stills.mjs` and update its entry path. Copy [`hdr_sky.py`](../scripts/hdr_sky.py) into `scripts/` if needed.
+3. Supply licensed local sky and HDR images for the two `staticFile()` paths in `world.ts`. Both use `public/court/` by default.
 4. Replace the set in `world.ts`, keeping IBL, sun, fill, grass and `TRAMPLED`. Replace `camAt`/`MARKS`, and push a `TRAMPLED` spot for every place a character stands on grass.
 5. Camera rules:
    - Wides and two-shots go high (2.7-3.1 m, about 20° down).
@@ -28,6 +29,9 @@ The full knob table, court vs diorama, is in `references/PBR_LOOK.md` → "Own s
    - No hard cuts inside a place.
    - Check feet and prop bases against the bottom edge on a 10-frame strip.
 6. Do not add world ink. Do not drop `paperEdge`: it is the signature.
+
+For a look test, run `node scripts/diorama-stills.mjs out/diorama/review 0.5 9,62,82,105` if you copied the helper as `diorama-stills.mjs`.
+Run it from the host root after setting its temp directory. The template does not implement the production frame check or `[FX]` activity logs. Do not count these stills as a [QA gate](../../references/QUALITY_ASSURANCE.md#script-gates) pass.
 
 ## Known gaps
 - The cutout shadow is faint when the sun is high and behind. Use a lower, more side-on sun for shots where it should read.

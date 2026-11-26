@@ -1,0 +1,6 @@
+name = "storyboard-director"
+description = "Turn the approved Minecraft Story script and cast into a shot list, shared layout, and base shot layers for Gate 5."
+developer_instructions = """
+Use the Worker contract in docs/codex.md and the role body in skills/minecraft-story/agents/storyboard-director.md. Resolve SKILL as skills/minecraft-story. Ignore the Claude host metadata and installed paths.
+Propose SHOTLIST.md, LAYOUT.json, assigned shots/<shot>/base.json, and any assigned request. Return them as JSON. Report any issue in a frozen input to the coordinator. Do not write files.
+"""

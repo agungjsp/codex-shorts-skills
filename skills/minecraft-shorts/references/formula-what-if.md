@@ -72,20 +72,18 @@ Indonesian runs ~10-15 % more syllables: keep it ≤ 115 words and check the 30 
   LEAVE the game???" / "What if you sleep in a bed HALF OUTSIDE the world border?"
 - Description: one plain sentence + edition and version ("Java 1.21.x"). Tags: minecraft, minecraft tips, minecraft
   glitches (the reference used only these three).
-- Final mp4 is named by the title, Windows-safe (user rule, `final-named-by-title`).
+- If the user requests video production, name the final MP4 after the title and use a Windows-safe filename.
 
 ## Test protocol (record everything, decide later)
 1. Fresh flat/void world, Peaceful off, keep inventory off unless that's the test. Note the edition + version.
 2. Two players: main + second account (LAN client). Same skin twice reads like "clones" and the creator says that
    two-identical-players framing helped.
-3. Slow it down so the moment is readable: `/tick rate 1` (Java) or `/tick freeze` + `/tick step`. Record the
-   real-speed version too.
+3. On Java 1.20.3 or later, if the test world allows admin commands, use `/tick rate 5` or `/tick freeze` and `/tick step` for a slower take. Reset with `/tick rate 20` or `/tick unfreeze`. On older Java releases, use only commands provided by an installed mod that you have tested. On Bedrock or without tick controls, record at normal speed and slow the replay in the edit. Record a real-speed take in every case.
 4. Run the test **3 times** (results can be random). Screenshot the chat each time; that chat line is the proof shot.
 5. If the answer is boring, try the second disruption from the bank before giving up on the mechanic.
 
 ## Shots + edit (from the creator's breakdown)
-- Record with **Replay Mod** (Java): fly a camera path over the recorded test afterwards. Cinematic paths are what set
-  the channel apart from plain gameplay.
+- Use **Replay Mod** only on a Java release supported by the installed mod. Otherwise record the same shot list by hand with the player's or a second client's camera. Use camera movement to keep the shot readable.
 - **Intro: cuts under 1 s each** for the first ~3 s (but not chaos). Open on an *approach* shot moving toward the
   subject ("getting into the video").
 - Unusual angles: top-down camera sliding over the bed/player; side-on two-shot of the two players.
@@ -99,10 +97,8 @@ Indonesian runs ~10-15 % more syllables: keep it ≤ 115 words and check the 30 
   use). User rules apply: recorded SFX only, list them first; music +2 dB.
 
 ## Handoff to the user's pipeline
-- Voice: the user's own voice, or ElevenLabs via `scripts/eleven_voice.py`, only with the user's OK (never spend
-  credits unasked).
-- Captions: always deliver the green-screen captions clip with the final, using the `captions` skill.
-- Model use: draft ideas/scripts on Sonnet; idea gate + twist judgement on Opus if two ideas tie.
+- Deliver the script and recording plan by default. The user records their own voice. If the user separately requests generated voice, ask before using paid credits.
+- If the user requests video production, use the `captions` skill for a separate green-screen clip. Do not burn captions into the picture.
 
 ## Checklist before you call a script done
 - [ ] Hook names the mechanic AND the disruption in the first ~4 s, ending in "?"
